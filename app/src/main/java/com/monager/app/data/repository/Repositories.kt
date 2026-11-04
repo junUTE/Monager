@@ -106,7 +106,22 @@ class DebtRepository(private val db: MonagerDatabase) {
     private val dao = db.debtDao()
     private val txDao = db.transactionDao()
     fun debts(iLent: Boolean): Flow<List<DebtWithPaid>> = dao.observeByDirection(iLent)
-    suspend fun add(d: DebtEntity) = dao.insert(d)
+    fun payments(debtId: Long): Flow<List<DebtPaymentEntity>> = dao.observePayments(debtId)
+    suspend fun add(d: DebtEntity): Long {
+        require(d.personName.isNotBlank() && d.amount > 0)
+        return dao.insert(d.copy(personName = d.personName.trim()))
+    }
+
+    /** Edits a debt; the total can never drop below what was already paid/collected. Returns false when rejected. */
+    suspend fun edit(id: Long, name: String, amount: Long, dueDate: Long?, note: String): Boolean = db.withTransaction {
+        val d = dao.get(id) ?: return@withTransaction false
+        if (name.isBlank() || amount <= 0 || amount < dao.paidOf(id)) return@withTransaction false
+        dao.update(d.copy(personName = name.trim(), amount = amount, dueDate = dueDate, note = note.trim()))
+        true
+    }
+
+    /** Removes the debt and its payment history. Transactions created by past payments are kept (they were real cash movements). */
+    suspend fun delete(id: Long) = dao.delete(id)
 
     /**
      * Partial pay/collect. Atomically: validates against the remaining balance, writes the payment row and,

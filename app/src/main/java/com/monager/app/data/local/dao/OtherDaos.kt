@@ -94,4 +94,6 @@ interface DebtDao {
     @Update suspend fun update(d: DebtEntity)
     @Query("DELETE FROM debts WHERE id = :id") suspend fun delete(id: Long)
     @Insert suspend fun insertPayment(p: DebtPaymentEntity): Long
+    @Query("SELECT * FROM debt_payments WHERE debtId = :id ORDER BY timestamp DESC, id DESC")
+    fun observePayments(id: Long): Flow<List<DebtPaymentEntity>>
 }

@@ -166,6 +166,31 @@ class DatabaseTest {
         assertThrows { vaults.save(com.monager.app.data.local.entity.VaultEntity(name = "X", target = 0)) }
     }
 
+    @Test fun debtEditCannotDropBelowPaid() = runBlocking {
+        val id = debts.add(DebtEntity(personName = "Nam", amount = 1_000, iLent = true, createdAt = 1))
+        debts.pay(id, 600, 2_000, walletId = null)
+        assertFalse(debts.edit(id, "Nam", 500, null, ""))
+        assertTrue(debts.edit(id, "  Nam B ", 600, 9_000, " ghi chú "))
+        val d = debts.debts(true).first().single()
+        assertEquals("Nam B", d.debt.personName); assertEquals(600L, d.debt.amount); assertEquals("ghi chú", d.debt.note)
+    }
+
+    @Test fun deletingDebtRemovesPaymentsButKeepsLinkedTransactions() = runBlocking {
+        val id = debts.add(DebtEntity(personName = "Linh", amount = 1_000, iLent = true, createdAt = 1))
+        debts.pay(id, 300, 2_000, walletId = 1)
+        debts.delete(id)
+        assertTrue(debts.debts(true).first().isEmpty())
+        assertTrue(debts.payments(id).first().isEmpty())
+        assertEquals(300L, db.transactionDao().observeTotal(TxType.INCOME, from, to).first())
+    }
+
+    @Test fun borrowedDebtRepaymentIsAnExpense() = runBlocking {
+        val id = debts.add(DebtEntity(personName = "Tuấn", amount = 1_000, iLent = false, createdAt = 1))
+        assertTrue(debts.pay(id, 250, 2_000, walletId = 1))
+        assertEquals(250L, db.transactionDao().observeTotal(TxType.EXPENSE, from, to).first())
+        assertFalse(debts.pay(id, 0, 3_000, walletId = null))
+    }
+
     @Test fun insertedCategoryHasNoDuplicateConstraintIssues() = runBlocking {
         val id = db.categoryDao().insert(CategoryEntity(name = "X", type = TxType.EXPENSE, iconKey = "More", toneKey = "Gray"))
         assertTrue(id > 0)

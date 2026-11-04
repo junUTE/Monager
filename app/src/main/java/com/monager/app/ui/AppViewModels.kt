@@ -14,6 +14,7 @@ import com.monager.app.data.local.entity.WalletEntity
 import com.monager.app.data.repository.CategoryNode
 import com.monager.app.di.AppContainer
 import com.monager.app.ui.components.MIcon
+import com.monager.app.ui.debts.DebtsViewModel
 import com.monager.app.ui.components.Tone
 import com.monager.app.ui.sample.TxItem
 import kotlinx.coroutines.Dispatchers
@@ -196,6 +197,7 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
         AddTransactionViewModel::class.java -> AddTransactionViewModel(container)
         CategoriesViewModel::class.java -> CategoriesViewModel(container)
         BudgetsViewModel::class.java -> BudgetsViewModel(container)
+        DebtsViewModel::class.java -> DebtsViewModel(container)
         else -> throw IllegalArgumentException("Unknown ViewModel ${modelClass.name}")
     } as T
 }

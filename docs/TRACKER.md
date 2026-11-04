@@ -13,7 +13,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 | M3 Home | in progress | 5 / 6 |
 | M4 Categories | in progress | 5 / 6 |
 | M5 Budgets & Savings | in progress | 4 / 7 |
-| M6 Debts | not started | 0 / 7 |
+| M6 Debts | done | 7 / 7 |
 | M7 Analytics | not started | 0 / 7 |
 | M8 Settings & Data | not started | 0 / 6 |
 | M9 Performance | not started | 0 / 6 |
@@ -74,13 +74,13 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [ ] Budget rollover to next month (optional)
 
 ## M6 Debts (F5)
-- [ ] Tabs: Borrowed / Lent
-- [ ] Debt detail (person, total, paid/collected, due date)
-- [ ] Add / edit debt
-- [ ] Partial pay / collect action
-- [ ] Optional linked transaction
-- [ ] Overdue highlight
-- [ ] Debt math tests
+- [x] Tabs: Borrowed / Lent
+- [x] Debt detail sheet (totals, note, payment history)
+- [x] Add / edit debt (total cannot drop below amount already paid; due date typed as dd/MM/yyyy, no date picker yet)
+- [x] Partial pay / collect action (amount, half / all shortcuts)
+- [x] Optional linked transaction (checkbox; writes INCOME or EXPENSE into the first wallet)
+- [x] Overdue highlight (red date + days overdue; settled debts sink to the bottom)
+- [x] Debt math tests (DebtMath 6 + repository tests for edit, delete, expense/income direction)
 
 ## M7 Analytics (F3)
 - [ ] Period filter Week / Month / Year / Custom
@@ -139,10 +139,11 @@ Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample
 - [ ] Persist theme in DataStore
 
 ## Test status
-- 40 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, Database/Repository 16 (Robolectric).
+- 49 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, DebtMath 6, Database/Repository 19 (Robolectric).
 - No UI tests, no device/emulator run yet.
 
 ## Next up
-- M6 Debts on Room, M7 Analytics on Room. M5 leftovers: rollover (optional), vault delete, draggable thumb.
-- Static screens still on SampleData: Stats, Debts.
+- M7 Analytics on Room. M5 leftovers: rollover (optional), vault delete, draggable thumb.
+- Static screen still on SampleData: Stats.
+- Due-date reminders ("nhắc trước 3 ngày" in the mockup) are NOT implemented; the note was removed from the UI so it does not promise it. Needs a notification permission + WorkManager; decide in M8/M10.
 - M4 is covered by repository tests (reorder, delete rules, two-level limit); the Categories screen/ViewModel itself has no UI test and has not been run on a device.
