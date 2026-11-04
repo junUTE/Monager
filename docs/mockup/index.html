@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monager Mockup</title>
+<style>
+:root{
+  --bg1:#F6EFE0;--bg2:#EDE3CC;--surface:rgba(255,251,242,.92);--s1:#FFFBF2;--s2:#EFE6D2;
+  --text:#1F2A24;--muted:#6B7A70;--em:#0F7B5F;--em2:#0A5C47;--inc:#12935F;--exp:#D9453D;--warn:#D9453D;
+  --hi:rgba(255,255,255,.55);--edge:rgba(255,255,255,.3);--sh:rgba(80,60,20,.18);--shl:rgba(255,255,255,.9);
+  --page:#cfc6b2;
+}
+[data-theme=dark]{
+  --bg1:#0E1A16;--bg2:#0A1210;--surface:rgba(26,42,36,.92);--s1:#1E322B;--s2:#162620;
+  --text:#E8F1EC;--muted:#8DA39A;--em:#2FBF94;--em2:#1E8F6E;--inc:#3DD69B;--exp:#FF6B63;--warn:#FF6B63;
+  --hi:rgba(255,255,255,.12);--edge:rgba(255,255,255,.12);--sh:rgba(0,0,0,.55);--shl:rgba(255,255,255,.06);
+  --page:#050a08;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--page);color:var(--text);padding:16px}
+h1{font-size:18px;margin-bottom:4px}
+.top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.top p{color:var(--muted);font-size:13px}
+button.tg{padding:8px 14px;border-radius:12px;border:1px solid var(--edge);background:var(--s1);color:var(--text);cursor:pointer}
+.grid{display:flex;flex-wrap:wrap;gap:24px}
+.cap{font-size:12px;color:var(--muted);margin:0 0 6px 4px}
+.phone{width:360px;height:760px;border-radius:36px;border:8px solid #111;background:linear-gradient(180deg,var(--bg1),var(--bg2));overflow:hidden;position:relative;display:flex;flex-direction:column}
+.sb{height:26px;font-size:11px;display:flex;justify-content:space-between;padding:8px 18px 0;color:var(--muted)}
+.body{flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
+.nav{height:62px;display:flex;justify-content:space-around;align-items:center;background:var(--surface);border-top:1px solid var(--edge);font-size:10px;color:var(--muted)}
+.nav .on{color:var(--em);font-weight:700}
+.nav span{display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav i{font-style:normal;font-size:18px}
+/* 3D raised: gradient + 1px highlight + offset shadow (no blur) */
+.raised{background:linear-gradient(180deg,var(--s1),var(--s2));border:1px solid var(--edge);border-radius:20px;box-shadow:4px 5px 0 var(--sh),-2px -2px 0 var(--shl)}
+.raised:active,.pressed{box-shadow:1px 1px 0 var(--sh);transform:translate(2px,3px)}
+.hero{background:linear-gradient(160deg,var(--em),var(--em2));color:#fff;border-radius:24px;padding:18px;box-shadow:5px 7px 0 var(--sh),inset 0 1px 0 var(--hi)}
+.hero small{opacity:.8}.hero b{display:block;font-size:30px;margin:4px 0 12px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.pill{padding:10px;border-radius:14px;text-align:center;font-size:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25)}
+.qa{padding:12px 6px;text-align:center;font-size:12px;font-weight:600}
+.qa i{display:block;font-style:normal;font-size:20px;margin-bottom:2px}
+.card{padding:12px}
+.bar{height:12px;border-radius:8px;background:var(--s2);box-shadow:inset 1px 2px 2px var(--sh);position:relative}
+.bar>u{position:absolute;inset:0 auto 0 0;border-radius:8px;background:linear-gradient(180deg,var(--em),var(--em2));text-decoration:none}
+.bar>u.w{background:linear-gradient(180deg,#ef6a62,var(--warn))}
+.bar>s{position:absolute;top:-4px;width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#fff,#ddd);box-shadow:2px 3px 0 var(--sh);margin-left:-10px;border:1px solid var(--edge)}
+.h{font-size:13px;font-weight:700;margin:2px 0}
+.muted{color:var(--muted);font-size:11px}
+.tx{display:flex;align-items:center;gap:10px;padding:8px 4px}
+.ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px;flex:none}
+.tx div.m{flex:1;font-size:13px}.tx div.m small{display:block;color:var(--muted);font-size:11px}
+.inc{color:var(--inc);font-weight:700}.exp{color:var(--exp);font-weight:700}
+.seg{display:flex;padding:4px;border-radius:16px;background:var(--s2);box-shadow:inset 1px 2px 3px var(--sh)}
+.seg span{flex:1;text-align:center;padding:8px;font-size:12px;border-radius:12px;color:var(--muted)}
+.seg .on{background:var(--em);color:#fff;box-shadow:2px 2px 0 var(--sh)}
+.amt{text-align:right;font-size:34px;font-weight:800;padding:6px 6px 0}.expr{text-align:right;color:var(--muted);font-size:14px}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pad span{padding:13px 0;text-align:center;font-size:18px;font-weight:600}
+.pad .op{color:var(--em)}.pad .ok{background:linear-gradient(180deg,var(--em),var(--em2));color:#fff;grid-row:span 2;display:grid;place-items:center}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips span{padding:6px 10px;border-radius:12px;font-size:12px;background:var(--s2)}
+.chips .on{background:var(--em);color:#fff}
+.donut{width:170px;height:170px;border-radius:50%;margin:0 auto;display:grid;place-items:center;
+  background:conic-gradient(#0F7B5F 0 38%,#E0A030 0 60%,#D9453D 0 76%,#4C8BD9 0 90%,#9AA89F 0 100%)}
+.donut>div{width:104px;height:104px;border-radius:50%;background:var(--s1);display:grid;place-items:center;text-align:center;font-size:12px;box-shadow:inset 2px 3px 4px var(--sh)}
+.cols{display:flex;align-items:flex-end;gap:10px;height:90px;padding:0 6px}
+.cols div{flex:1;display:flex;gap:3px;align-items:flex-end;height:100%}
+.cols i{flex:1;border-radius:5px 5px 0 0;background:var(--inc)}.cols i+i{background:var(--exp)}
+.set{display:flex;justify-content:space-between;align-items:center;padding:14px}
+.sw{width:44px;height:24px;border-radius:14px;background:var(--em);position:relative;box-shadow:inset 1px 2px 2px rgba(0,0,0,.3)}
+.sw:after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>Monager – Mockup (offline, Moto G35 target)</h1>
+  <p>Derived from the feature list; Figma Make link was not readable. Cheap 3D = gradient + 1px highlight + hard offset shadow (no blur).</p></div>
+  <button class="tg" onclick="var r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark'">Toggle Light / Dark</button>
+</div>
+<div class="grid">
+
+<!-- 1 HOME -->
+<div><p class="cap">1 · Home (F2)</p><div class="phone"><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+<div class="body">
+  <div class="hero"><small>Tổng số dư</small><b>24.350.000 đ</b>
+    <div class="row"><div class="pill">▲ Thu tháng<br><b style="font-size:14px;margin:2px 0 0">18.000.000</b></div><div class="pill">▼ Chi tháng<br><b style="font-size:14px;margin:2px 0 0">7.420.000</b></div></div></div>
+  <div class="row">
+    <div class="raised qa"><i>➖</i>Chi tiêu</div><div class="raised qa"><i>➕</i>Thu nhập</div><div class="raised qa"><i>⇄</i>Chuyển khoản</div></div>
+  <div class="raised card"><div class="row" style="margin-bottom:6px"><span class="h">Hạn mức tháng 11</span><span class="muted" style="text-align:right">74%</span></div>
+    <div class="bar"><u style="width:74%"></u></div><div class="muted" style="margin-top:6px">7,42 / 10 triệu</div></div>
+  <div class="h">Gần đây</div>
+  <div class="muted">Hôm nay</div>
+  <div class="tx"><div class="ic" style="background:#f6d9a8">☕</div><div class="m">Cà phê<small>Ăn uống · Ví chính</small></div><span class="exp">−45.000</span></div>
+  <div class="tx"><div class="ic" style="background:#bfe6d3">💼</div><div class="m">Lương<small>Thu nhập</small></div><span class="inc">+18.000.000</span></div>
+  <div class="muted">Hôm qua</div>
+  <div class="tx"><div class="ic" style="background:#f3c3bf">🚌</div><div class="m">Xe buýt<small>Di chuyển</small></div><span class="exp">−12.000</span></div>
+</div>
+<div class="nav"><span class="on"><i>⌂</i>Home</span><span><i>◔</i>Thống kê</span><span><i>◎</i>Hạn mức</span><span><i>⇅</i>Nợ</span><span><i>⚙</i>Cài đặt</span></div></div></div>
+
+<!-- 2 ADD -->
+<div><p class="cap">2 · Add Transaction (F1)</p><div class="phone"><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+<div class="body" style="gap:8px">
+  <div class="seg"><span class="on">Chi tiêu</span><span>Thu nhập</span><span>Tiết kiệm</span></div>
+  <div class="expr">50k + 30k</div><div class="amt exp">80.000 đ</div>
+  <div class="muted">Danh mục</div>
+  <div class="chips"><span class="on">🍜 Ăn uống</span><span>🚌 Di chuyển</span><span>🛍 Mua sắm</span><span>🏠 Nhà</span></div>
+  <div class="chips"><span class="on">Cà phê</span><span>Trưa</span><span>Tối</span><span>Ăn vặt</span></div>
+  <div class="row"><div class="raised card muted">📅 Hôm nay, 09:41</div><div class="raised card muted">👛 Ví chính</div></div>
+  <div class="raised card muted">📝 Ghi chú…</div>
+  <div class="pad" style="margin-top:auto">
+    <span class="raised">7</span><span class="raised">8</span><span class="raised">9</span><span class="raised op">÷</span>
+    <span class="raised">4</span><span class="raised">5</span><span class="raised">6</span><span class="raised op">×</span>
+    <span class="raised">1</span><span class="raised">2</span><span class="raised">3</span><span class="raised op">−</span>
+    <span class="raised">C</span><span class="raised">0</span><span class="raised">⌫</span><span class="raised op">+</span>
+  </div>
+  <div class="hero" style="text-align:center;padding:12px;font-weight:700">Lưu giao dịch</div>
+</div></div></div>
+
+<!-- 3 ANALYTICS -->
+<div><p class="cap">3 · Analytics (F3)</p><div class="phone"><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+<div class="body">
+  <div class="seg"><span>Tuần</span><span class="on">Tháng</span><span>Năm</span><span>Tùy chỉnh</span></div>
+  <div class="donut"><div><div><b>7.420.000</b><br><span class="muted">Tổng chi</span></div></div></div>
+  <div class="raised card"><div class="h">Thu vs Chi</div>
+    <div class="cols"><div><i style="height:80%"></i><i style="height:45%"></i></div><div><i style="height:60%"></i><i style="height:55%"></i></div><div><i style="height:90%"></i><i style="height:40%"></i></div><div><i style="height:70%"></i><i style="height:62%"></i></div></div></div>
+  <div class="tx"><div class="ic" style="background:#0F7B5F22">🍜</div><div class="m">Ăn uống<small>38%</small></div><b>2.820.000</b></div>
+  <div class="tx"><div class="ic" style="background:#E0A03022">🏠</div><div class="m">Nhà<small>22%</small></div><b>1.630.000</b></div>
+  <div class="tx"><div class="ic" style="background:#D9453D22">🚌</div><div class="m">Di chuyển<small>16%</small></div><b>1.190.000</b></div>
+</div>
+<div class="nav"><span><i>⌂</i>Home</span><span class="on"><i>◔</i>Thống kê</span><span><i>◎</i>Hạn mức</span><span><i>⇅</i>Nợ</span><span><i>⚙</i>Cài đặt</span></div></div></div>
+
+<!-- 4 BUDGETS -->
+<div><p class="cap">4 · Budgets &amp; Savings (F4)</p><div class="phone"><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+<div class="body">
+  <div class="seg"><span class="on">Hạn mức</span><span>Tiết kiệm</span></div>
+  <div class="raised card"><div class="row"><span class="h">Tổng tháng 11</span><span class="muted" style="text-align:right">7,4 / 10 tr</span></div><div class="bar" style="margin-top:8px"><u style="width:74%"></u><s style="left:74%"></s></div></div>
+  <div class="raised card"><div class="row"><span class="h">🍜 Ăn uống</span><span class="exp" style="text-align:right;font-size:12px">⚠ 94%</span></div><div class="bar" style="margin-top:8px"><u class="w" style="width:94%"></u><s style="left:94%"></s></div><div class="muted" style="margin-top:6px">4,7 / 5 triệu</div></div>
+  <div class="raised card"><div class="row"><span class="h">🚌 Di chuyển</span><span class="muted" style="text-align:right">40%</span></div><div class="bar" style="margin-top:8px"><u style="width:40%"></u><s style="left:40%"></s></div></div>
+  <div class="h">Quỹ tiết kiệm</div>
+  <div class="raised card"><div class="row"><span class="h">💻 Mua laptop</span><span class="muted" style="text-align:right">62%</span></div><div class="bar" style="margin-top:8px"><u style="width:62%"></u></div><div class="muted" style="margin-top:6px">12,4 / 20 triệu</div></div>
+  <div class="raised card"><div class="row"><span class="h">🛟 Quỹ dự phòng</span><span class="muted" style="text-align:right">30%</span></div><div class="bar" style="margin-top:8px"><u style="width:30%"></u></div></div>
+</div>
+<div class="nav"><span><i>⌂</i>Home</span><span><i>◔</i>Thống kê</span><span class="on"><i>◎</i>Hạn mức</span><span><i>⇅</i>Nợ</span><span><i>⚙</i>Cài đặt</span></div></div></div>
+
+<!-- 5 DEBTS -->
+<div><p class="cap">5 · Debts (F5)</p><div class="phone"><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+<div class="body">
+  <div class="seg"><span>Đi vay</span><span class="on">Cho vay</span></div>
+  <div class="hero"><small>Cần thu về</small><b style="margin-bottom:0">3.500.000 đ</b></div>
+  <div class="raised card"><div class="row"><span class="h">Nguyễn Văn A</span><span class="inc" style="text-align:right">2.000.000</span></div>
+    <div class="muted">Đã thu 500.000 · Hẹn 15/12</div><div class="bar" style="margin:8px 0"><u style="width:25%"></u></div>
+    <div class="row"><div class="raised qa" style="padding:8px">Thu bớt</div><div class="raised qa" style="padding:8px">Chi tiết</div></div></div>
+  <div class="raised card"><div class="row"><span class="h">Trần B</span><span class="inc" style="text-align:right">1.500.000</span></div>
+    <div class="muted">Đã thu 0 · <span class="exp">Quá hạn 3 ngày</span></div><div class="bar" style="margin:8px 0"><u style="width:0"></u></div>
+    <div class="row"><div class="raised qa" style="padding:8px">Thu bớt</div><div class="raised qa" style="padding:8px">Chi tiết</div></div></div>
+</div>
+<div class="nav"><span><i>⌂</i>Home</span><span><i>◔</i>Thống kê</span><span><i>◎</i>Hạn mức</span><span class="on"><i>⇅</i>Nợ</span><span><i>⚙</i>Cài đặt</span></div></div></div>
+
+<!-- 6 CATEGORIES -->
+<div><p class="cap">6 · Categories (F6)</p><div class="phone"><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+<div class="body">
+  <div class="h">Quản lý danh mục</div>
+  <div class="raised card"><div class="tx" style="padding:0"><div class="ic" style="background:#f6d9a8">🍜</div><div class="m"><b>Ăn uống</b><small>3 danh mục con</small></div><span class="muted">☰ ✎</span></div>
+    <div class="chips" style="margin:8px 0 0 50px"><span>Cà phê</span><span>Trưa</span><span>Tối</span><span>＋</span></div></div>
+  <div class="raised card"><div class="tx" style="padding:0"><div class="ic" style="background:#f3c3bf">🚌</div><div class="m"><b>Di chuyển</b><small>2 danh mục con</small></div><span class="muted">☰ ✎</span></div></div>
+  <div class="raised card"><div class="tx" style="padding:0"><div class="ic" style="background:#bfe6d3">🏠</div><div class="m"><b>Nhà</b><small>4 danh mục con</small></div><span class="muted">☰ ✎</span></div></div>
+  <div class="h">Chọn icon (vector)</div>
+  <div class="chips"><span>🍜</span><span>☕</span><span>🚌</span><span>🛍</span><span>💡</span><span>🎬</span><span>💊</span><span>🎓</span><span>🐶</span><span>✈</span></div>
+  <div class="hero" style="text-align:center;padding:12px;font-weight:700;margin-top:auto">＋ Thêm danh mục</div>
+</div></div></div>
+
+<!-- 7 SETTINGS -->
+<div><p class="cap">7 · Settings &amp; Data (F7)</p><div class="phone"><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>
+<div class="body">
+  <div class="h">Cài đặt</div>
+  <div class="raised set"><span>🌙 Giao diện tối</span><div class="sw"></div></div>
+  <div class="raised set"><span>💾 Xuất JSON</span><span class="muted">›</span></div>
+  <div class="raised set"><span>📄 Xuất CSV</span><span class="muted">›</span></div>
+  <div class="raised set"><span>📥 Nhập dữ liệu</span><span class="muted">›</span></div>
+  <div class="raised set"><span>💱 Tiền tệ</span><span class="muted">VND ›</span></div>
+  <div class="raised card muted">🔒 100% offline · Dữ liệu lưu trên máy (Room DB) · Không dùng mạng</div>
+</div>
+<div class="nav"><span><i>⌂</i>Home</span><span><i>◔</i>Thống kê</span><span><i>◎</i>Hạn mức</span><span><i>⇅</i>Nợ</span><span class="on"><i>⚙</i>Cài đặt</span></div></div></div>
+
+</div>
+</body>
+</html>
