@@ -66,6 +66,12 @@ enum class MIcon(private val path: String) {
         private val byName = entries.associateBy { it.name }
         /** Registry lookup for icons stored in Room as iconKey; unknown keys fall back to More. */
         fun fromKey(key: String?): MIcon = byName[key] ?: More
+
+        /** Icons offered when creating or editing a category. */
+        val picker: List<MIcon> = listOf(
+            Utensils, Coffee, Car, Plane, ShoppingBag, Receipt, Phone, House, Heart, Graduation, Gift, Briefcase,
+            Wallet, Sparkles, Users, Chart, Calendar, Transfer, Sun, Moon, Settings, Search, More, Home,
+        )
     }
 
     val vector: ImageVector by lazy(LazyThreadSafetyMode.NONE) {

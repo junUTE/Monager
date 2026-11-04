@@ -25,6 +25,7 @@ class TransactionRepository(private val db: MonagerDatabase) {
     fun total(type: TxType, from: Long, to: Long) = dao.observeTotal(type, from, to)
     fun totalsByParent(type: TxType, from: Long, to: Long) = dao.observeTotalsByParent(type, from, to)
     fun buckets(from: Long, to: Long, bucketMs: Long) = dao.observeBuckets(from, to, bucketMs)
+    fun daily(from: Long, to: Long) = dao.observeDaily(from, to)
 
     /** Validates the invariants the UI relies on, then inserts. */
     suspend fun add(tx: TransactionEntity): Long {

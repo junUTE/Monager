@@ -25,6 +25,7 @@ data class TxRow(
 )
 
 data class GroupTotal(val groupId: Long, val total: Long)
+data class DayTotal(val day: String, val type: TxType, val total: Long)
 data class BucketTotal(val bucket: Int, val type: TxType, val total: Long)
 
 private const val ROW_SELECT = """
@@ -86,4 +87,15 @@ interface TransactionDao {
         """,
     )
     fun observeBuckets(from: Long, to: Long, bucketMs: Long): Flow<List<BucketTotal>>
+
+    /** Per local-calendar-day totals (at most ~366 x 2 rows for a year); the caller folds them into week/month buckets. */
+    @Query(
+        """
+        SELECT date(timestamp / 1000, 'unixepoch', 'localtime') AS day, type, SUM(amount) AS total
+        FROM transactions
+        WHERE type IN ('INCOME', 'EXPENSE') AND timestamp BETWEEN :from AND :to
+        GROUP BY day, type
+        """,
+    )
+    fun observeDaily(from: Long, to: Long): Flow<List<DayTotal>>
 }

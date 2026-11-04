@@ -14,7 +14,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 | M4 Categories | in progress | 5 / 6 |
 | M5 Budgets & Savings | in progress | 4 / 7 |
 | M6 Debts | done | 7 / 7 |
-| M7 Analytics | not started | 0 / 7 |
+| M7 Analytics | in progress | 6 / 7 |
 | M8 Settings & Data | not started | 0 / 6 |
 | M9 Performance | not started | 0 / 6 |
 | M10 Release | not started | 0 / 5 |
@@ -83,13 +83,13 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [x] Debt math tests (DebtMath 6 + repository tests for edit, delete, expense/income direction)
 
 ## M7 Analytics (F3)
-- [ ] Period filter Week / Month / Year / Custom
-- [ ] Canvas donut chart (% + total in center)
-- [ ] Cash-flow bar chart (income vs expense)
-- [ ] Ranked category breakdown list
-- [ ] Empty/loading states
-- [ ] Chart geometry precomputed off main thread
-- [ ] Zero-allocation draw verified
+- [x] Period filter Week / Month / Year / Custom (prev/next navigation; custom range typed as dd/MM/yyyy)
+- [x] Canvas donut chart (total + period label in the center; top 4 categories + "Khác")
+- [x] Cash-flow bar chart (income vs expense per day / week / month bucket)
+- [x] Ranked category breakdown list (percent sums to exactly 100, children roll up to parent) + change vs previous period
+- [x] Empty/loading states
+- [x] Chart geometry precomputed off main thread (AnalyticsViewModel on Dispatchers.Default)
+- [~] Zero-allocation draw: code-reviewed (Stroke/CornerRadius remembered, sweeps and fractions precomputed) but NOT profiled — verify in M9 with the Android Studio profiler
 
 ## M8 Settings & Data (F7)
 - [ ] Theme: Light / Dark / System
@@ -139,11 +139,12 @@ Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample
 - [ ] Persist theme in DataStore
 
 ## Test status
-- 49 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, DebtMath 6, Database/Repository 19 (Robolectric).
+- 60 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, DebtMath 6, Periods 10, Database/Repository 20 (Robolectric).
 - No UI tests, no device/emulator run yet.
 
 ## Next up
-- M7 Analytics on Room. M5 leftovers: rollover (optional), vault delete, draggable thumb.
-- Static screen still on SampleData: Stats.
+- M8 Settings & Data (theme persistence, JSON/CSV backup and restore). M5 leftovers: rollover (optional), vault delete, draggable thumb.
+- All five screens now read Room; the sample-data file is deleted.
+- Debug APK grew 10.8 -> 14.4 MB across M4-M7 (debug is unminified); measure the release build in M9.
 - Due-date reminders ("nhắc trước 3 ngày" in the mockup) are NOT implemented; the note was removed from the UI so it does not promise it. Needs a notification permission + WorkManager; decide in M8/M10.
 - M4 is covered by repository tests (reorder, delete rules, two-level limit); the Categories screen/ViewModel itself has no UI test and has not been run on a device.

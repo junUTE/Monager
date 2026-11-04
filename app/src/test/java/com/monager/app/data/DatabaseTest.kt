@@ -191,6 +191,21 @@ class DatabaseTest {
         assertFalse(debts.pay(id, 0, 3_000, walletId = null))
     }
 
+    @Test fun dailyTotalsGroupByLocalDayAndType() = runBlocking {
+        val d1 = java.time.LocalDate.of(2026, 11, 3)
+        val noon = { d: java.time.LocalDate -> com.monager.app.core.TimeRanges.startOfDay(d) + 12 * 3_600_000L }
+        tx.add(expense(100, 1, noon(d1))); tx.add(expense(40, 2, noon(d1) + 1_000))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 900, categoryId = 11, timestamp = noon(d1)))
+        tx.add(expense(7, 1, noon(d1.plusDays(1))))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.SAVING, amount = 500, vaultId = 1, timestamp = noon(d1))) // not income/expense
+        val range = com.monager.app.core.Periods.of(com.monager.app.core.PeriodKind.CUSTOM, 0, d1, d1 to d1.plusDays(1)).millis
+        val rows = tx.daily(range.from, range.to).first().associate { "${it.day}/${it.type}" to it.total }
+        assertEquals(140L, rows["2026-11-03/EXPENSE"])
+        assertEquals(900L, rows["2026-11-03/INCOME"])
+        assertEquals(7L, rows["2026-11-04/EXPENSE"])
+        assertEquals(3, rows.size)
+    }
+
     @Test fun insertedCategoryHasNoDuplicateConstraintIssues() = runBlocking {
         val id = db.categoryDao().insert(CategoryEntity(name = "X", type = TxType.EXPENSE, iconKey = "More", toneKey = "Gray"))
         assertTrue(id > 0)

@@ -33,7 +33,7 @@ import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.raised
-import com.monager.app.ui.sample.TxItem
+import com.monager.app.ui.model.TxItem
 import com.monager.app.ui.theme.mc
 
 private val OnHero = Color.White

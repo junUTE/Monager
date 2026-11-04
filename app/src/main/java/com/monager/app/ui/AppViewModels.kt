@@ -14,9 +14,10 @@ import com.monager.app.data.local.entity.WalletEntity
 import com.monager.app.data.repository.CategoryNode
 import com.monager.app.di.AppContainer
 import com.monager.app.ui.components.MIcon
+import com.monager.app.ui.analytics.AnalyticsViewModel
 import com.monager.app.ui.debts.DebtsViewModel
 import com.monager.app.ui.components.Tone
-import com.monager.app.ui.sample.TxItem
+import com.monager.app.ui.model.TxItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -198,6 +199,7 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
         CategoriesViewModel::class.java -> CategoriesViewModel(container)
         BudgetsViewModel::class.java -> BudgetsViewModel(container)
         DebtsViewModel::class.java -> DebtsViewModel(container)
+        AnalyticsViewModel::class.java -> AnalyticsViewModel(container)
         else -> throw IllegalArgumentException("Unknown ViewModel ${modelClass.name}")
     } as T
 }

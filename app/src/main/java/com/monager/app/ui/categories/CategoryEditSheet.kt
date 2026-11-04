@@ -42,7 +42,6 @@ import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.Tone
-import com.monager.app.ui.sample.SampleData
 import com.monager.app.ui.theme.mc
 
 /**
@@ -107,7 +106,7 @@ fun CategoryEditSheet(
             }
 
             Text("Biểu tượng", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
-            SampleData.pickerIcons.chunked(6).forEach { rowIcons ->
+            MIcon.picker.chunked(6).forEach { rowIcons ->
                 Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     rowIcons.forEach { ic ->
                         val sel = ic.name == icon

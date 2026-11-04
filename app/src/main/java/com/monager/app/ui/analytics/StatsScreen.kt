@@ -2,6 +2,7 @@ package com.monager.app.ui.analytics
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,141 +20,229 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.monager.app.core.DebtMath
 import com.monager.app.core.Money
+import com.monager.app.core.PeriodKind
 import com.monager.app.ui.components.AppCard
 import com.monager.app.ui.components.AppIconButton
+import com.monager.app.ui.components.InsetField
 import com.monager.app.ui.components.MIcon
+import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.ScreenHeader
 import com.monager.app.ui.components.SegmentedTabs
-import com.monager.app.ui.sample.SampleData
+import com.monager.app.ui.components.SimpleSheet
 import com.monager.app.ui.theme.mc
 
-private val Periods = listOf("Tuần", "Tháng", "Năm")
+private val Kinds = listOf(PeriodKind.WEEK, PeriodKind.MONTH, PeriodKind.YEAR, PeriodKind.CUSTOM)
+private val KindLabels = listOf("Tuần", "Tháng", "Năm", "Tùy chỉnh")
+private val SlicePaletteLight = listOf(Color(0xFF143D30), Color(0xFFDC604E), Color(0xFF557A9B), Color(0xFFD29D3F), Color(0xFFAAB3AE))
+private val SlicePaletteDark = listOf(Color(0xFF4FB98F), Color(0xFFF08A7A), Color(0xFF7FA6C9), Color(0xFFE6B960), Color(0xFF8A9690))
 
 @Composable
-fun StatsScreen() {
+fun StatsScreen(vm: AnalyticsViewModel) {
     val c = mc
-    var period by rememberSaveable { mutableIntStateOf(1) }
+    val st by vm.state.collectAsStateWithLifecycle()
+    var customSheet by rememberSaveable { mutableStateOf(false) }
+    val palette = if (c.dark) SlicePaletteDark else SlicePaletteLight
+
     Box(Modifier.fillMaxSize().background(c.bg)) {
         LazyColumn(
             Modifier.fillMaxSize().statusBarsPadding(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item(key = "h") { ScreenHeader("Báo cáo", "Theo dõi dòng tiền của bạn", right = { AppIconButton(MIcon.Calendar, "Chọn ngày", tint = c.primary) }) }
-            item(key = "seg") { SegmentedTabs(Periods, period, { period = it }) }
-            item(key = "donut") {
-                AppCard {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text("Tổng chi tiêu", color = c.muted, fontSize = 10.sp)
-                            Text("8.320.000 ₫", color = c.text, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Text(
-                            "↓ 12,4%", color = Color(0xFF166534), fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Color(0xFFE7F5EA)).padding(horizontal = 8.dp, vertical = 5.dp),
-                        )
-                    }
-                    Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
-                        Donut(centerTop = "8,32tr", centerBottom = when (period) { 0 -> "Tuần này"; 2 -> "Năm 2026"; else -> "Tháng 10" })
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SampleData.slices.forEach { s ->
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(7.dp).clip(CircleShape).background(Color(s.argb)))
-                                Text(s.name, color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 8.dp))
-                                Text("${s.percent}%", color = c.muted, fontSize = 11.sp, modifier = Modifier.padding(end = 12.dp))
-                                Text(Money.format(s.amount), color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
+            item(key = "h") {
+                ScreenHeader("Báo cáo", "Theo dõi dòng tiền của bạn", right = { AppIconButton(MIcon.Calendar, "Chọn khoảng ngày", { customSheet = true }, c.primary) })
+            }
+            item(key = "seg") {
+                SegmentedTabs(KindLabels, Kinds.indexOf(st.kind).coerceAtLeast(0), { i ->
+                    if (Kinds[i] == PeriodKind.CUSTOM) customSheet = true else vm.setKind(Kinds[i])
+                })
+            }
+            item(key = "nav") {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    AppIconButton(MIcon.Back, "Kỳ trước", { vm.shift(-1) }, if (st.kind == PeriodKind.CUSTOM) c.muted.copy(alpha = .3f) else c.text)
+                    Text(st.label, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Box(Modifier.alpha(if (st.canGoNext) 1f else .3f)) { AppIconButton(MIcon.ChevronRight, "Kỳ sau", { if (st.canGoNext) vm.shift(1) }, c.text) }
                 }
             }
-            item(key = "flow") {
-                AppCard {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column {
-                            Text("Dòng tiền theo tuần", color = c.muted, fontSize = 10.sp)
-                            Text("Thu nhập & chi tiêu", color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Box(Modifier.size(6.dp).background(c.income, RoundedCornerShape(2.dp)))
-                            Text("Thu", color = c.muted, fontSize = 9.sp)
-                            Box(Modifier.size(6.dp).background(c.expense, RoundedCornerShape(2.dp)))
-                            Text("Chi", color = c.muted, fontSize = 9.sp)
-                        }
+            if (st.loading) {
+                item(key = "loading") { Text("Đang tải…", color = c.muted, fontSize = 12.sp, modifier = Modifier.padding(24.dp)) }
+            } else {
+                item(key = "donut") { SpendingCard(st, palette) }
+                item(key = "flow") { FlowCard(st) }
+            }
+        }
+        if (customSheet) {
+            CustomRangeSheet(onApply = { f, t -> vm.setCustom(f, t); customSheet = false }, onClose = { customSheet = false })
+        }
+    }
+}
+
+@Composable
+private fun SpendingCard(st: AnalyticsState, palette: List<Color>) {
+    val c = mc
+    AppCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text("Tổng chi tiêu", color = c.muted, fontSize = 10.sp)
+                Text(Money.format(st.totalExpense), color = c.text, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            }
+            st.changePct?.let { pct ->
+                val good = pct <= 0 // spending less than before is good news
+                val tone = if (good) Color(0xFF166534) else Color(0xFF991B1B)
+                Text(
+                    (if (pct <= 0) "↓ " else "↑ ") + "${kotlin.math.abs(pct)}%", color = tone, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (good) Color(0xFFE7F5EA) else Color(0xFFFDE8E6)).padding(horizontal = 8.dp, vertical = 5.dp),
+                )
+            }
+        }
+        Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) { Donut(st, palette) }
+        if (st.slices.isEmpty()) {
+            Text("Chưa có chi tiêu trong kỳ này.", color = c.muted, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                st.slices.forEachIndexed { i, s ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(palette[i % palette.size]))
+                        Text(s.name, color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 8.dp))
+                        Text("${s.percent}%", color = c.muted, fontSize = 11.sp, modifier = Modifier.padding(end = 12.dp))
+                        Text(Money.format(s.amount), color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    CashFlowBars(Modifier.padding(top = 12.dp))
                 }
             }
         }
     }
 }
 
-/** Lightweight Canvas donut: sweeps are computed once; nothing is allocated per frame except draw calls. */
+/** Canvas donut. Sweeps are precomputed in the ViewModel; the Stroke is remembered, so drawing allocates nothing new. */
 @Composable
-private fun Donut(centerTop: String, centerBottom: String) {
+private fun Donut(st: AnalyticsState, palette: List<Color>) {
     val c = mc
-    val slices = SampleData.slices
-    val sweeps = remember { slices.map { it.percent * 3.6f } }
-    val colors = remember { slices.map { Color(it.argb) } }
+    val strokePx = with(LocalDensity.current) { 21.dp.toPx() }
+    val style = remember(strokePx) { Stroke(strokePx) }
+    val emptyRing = c.surface2
     Box(Modifier.size(130.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 21.dp.toPx()
-            val inset = stroke / 2f
-            val arcSize = Size(size.width - stroke, size.height - stroke)
-            var start = -90f
-            for (i in sweeps.indices) {
-                drawArc(colors[i], start, sweeps[i], false, Offset(inset, inset), arcSize, style = Stroke(stroke))
-                start += sweeps[i]
+            val inset = strokePx / 2f
+            val arcSize = Size(size.width - strokePx, size.height - strokePx)
+            if (st.slices.isEmpty()) {
+                drawArc(emptyRing, 0f, 360f, false, Offset(inset, inset), arcSize, style = style)
+            } else {
+                var start = -90f
+                for (i in st.slices.indices) {
+                    val sweep = st.slices[i].sweep
+                    drawArc(palette[i % palette.size], start, sweep, false, Offset(inset, inset), arcSize, style = style)
+                    start += sweep
+                }
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(centerTop, color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text(centerBottom, color = c.muted, fontSize = 9.sp)
+            Text(compact(st.totalExpense), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(st.label, color = c.muted, fontSize = 8.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 18.dp), textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/** 8.320.000 -> "8,32tr", 1.500 -> "1,5k": short enough for the donut hole. */
+private fun compact(v: Long): String = when {
+    v >= 1_000_000_000 -> "%.1ftỷ".format(v / 1e9).replace('.', ',')
+    v >= 1_000_000 -> "%.2ftr".format(v / 1e6).replace('.', ',').replace(",00", "")
+    v >= 1_000 -> "%.1fk".format(v / 1e3).replace('.', ',').replace(",0", "")
+    else -> v.toString()
+}
+
+@Composable
+private fun FlowCard(st: AnalyticsState) {
+    val c = mc
+    AppCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text("Dòng tiền", color = c.muted, fontSize = 10.sp)
+                Text("Thu nhập & chi tiêu", color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(Modifier.size(6.dp).background(c.income, RoundedCornerShape(2.dp)))
+                Text("Thu", color = c.muted, fontSize = 9.sp)
+                Box(Modifier.size(6.dp).background(c.expense, RoundedCornerShape(2.dp)))
+                Text("Chi", color = c.muted, fontSize = 9.sp)
+            }
+        }
+        Text("Thu ${Money.format(st.totalIncome)}  ·  Chi ${Money.format(st.totalExpense)}", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+        if (st.bars.all { it.income == 0L && it.expense == 0L }) {
+            Text("Chưa có dữ liệu trong kỳ này.", color = c.muted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 24.dp))
+        } else {
+            CashFlowBars(st.bars, Modifier.padding(top = 12.dp))
         }
     }
 }
 
 @Composable
-private fun CashFlowBars(modifier: Modifier) {
+private fun CashFlowBars(bars: List<BarUi>, modifier: Modifier) {
     val c = mc
-    val bars = SampleData.weekBars
+    val density = LocalDensity.current
+    val gap = with(density) { 3.dp.toPx() }
+    val radius = remember(gap) { CornerRadius(with(density) { 4.dp.toPx() }) }
     Column(modifier) {
-        Canvas(Modifier.fillMaxWidth().height(96.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(110.dp)) {
             val groupW = size.width / bars.size
-            val barW = 12.dp.toPx()
-            val gap = 4.dp.toPx()
-            val r = CornerRadius(4.dp.toPx())
+            val barW = ((groupW - gap * 3) / 2f).coerceIn(2f, 14.dp.toPx())
             for (g in 1..3) {
                 val y = size.height * g / 4f
                 drawLine(c.line, Offset(0f, y), Offset(size.width, y), 1f)
             }
-            bars.forEachIndexed { i, (inc, exp) ->
+            for (i in bars.indices) {
+                val b = bars[i]
                 val x0 = groupW * i + (groupW - (barW * 2 + gap)) / 2f
-                val hi = inc.dp.toPx()
-                val he = exp.dp.toPx()
-                drawRoundRect(c.income, Offset(x0, size.height - hi), Size(barW, hi), r)
-                drawRoundRect(c.expense, Offset(x0 + barW + gap, size.height - he), Size(barW, he), r)
+                val hi = size.height * b.incomeFrac
+                val he = size.height * b.expenseFrac
+                if (hi > 0f) drawRoundRect(c.income, Offset(x0, size.height - hi), Size(barW, hi), radius)
+                if (he > 0f) drawRoundRect(c.expense, Offset(x0 + barW + gap, size.height - he), Size(barW, he), radius)
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-            bars.indices.forEach { Text("Tuần ${it + 1}", color = c.muted, fontSize = 9.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+            bars.forEach { Text(it.label, color = c.muted, fontSize = 8.sp, maxLines = 1, modifier = Modifier.weight(1f), textAlign = TextAlign.Center) }
         }
+    }
+}
+
+@Composable
+private fun CustomRangeSheet(onApply: (java.time.LocalDate, java.time.LocalDate) -> Unit, onClose: () -> Unit) {
+    val c = mc
+    val today = java.time.LocalDate.now()
+    var from by rememberSaveable { mutableStateOf(DebtMath.formatDate(today.minusDays(29))) }
+    var to by rememberSaveable { mutableStateOf(DebtMath.formatDate(today)) }
+    val f = DebtMath.parseDate(from)
+    val t = DebtMath.parseDate(to)
+    val ok = f != null && t != null
+    SimpleSheet("Khoảng thời gian", "Định dạng dd/MM/yyyy", onClose) {
+        Text("Từ ngày", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+        InsetField(from, { if (it.length <= 10) from = it }, "01/11/2026")
+        Text("Đến ngày", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+        InsetField(to, { if (it.length <= 10) to = it }, "30/11/2026")
+        if (!ok) Text("Ngày không hợp lệ", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+        RaisedBox(
+            Modifier.fillMaxWidth().padding(top = 14.dp).height(44.dp).alpha(if (ok) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
+            onClick = { if (f != null && t != null) onApply(f, t) },
+        ) { Text("Áp dụng", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
     }
 }
