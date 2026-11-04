@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.monager.app.core.Money
+import com.monager.app.ui.HomeState
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.AppProgress
 import com.monager.app.ui.components.CategoryIcon
@@ -32,7 +33,6 @@ import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.raised
-import com.monager.app.ui.sample.SampleData
 import com.monager.app.ui.sample.TxItem
 import com.monager.app.ui.theme.mc
 
@@ -41,7 +41,7 @@ private val GlassFill = Color(0x26FFFFFF) // solid translucent instead of backdr
 private val GlassBorder = Color(0x47FFFFFF)
 
 @Composable
-fun HomeScreen(dark: Boolean, onToggleDark: () -> Unit, onOpenCategories: () -> Unit, onAdd: (Int) -> Unit) {
+fun HomeScreen(state: HomeState, dark: Boolean, onToggleDark: () -> Unit, onOpenCategories: () -> Unit, onAdd: (Int) -> Unit) {
     val c = mc
     Box(Modifier.fillMaxSize().background(c.homeBackground)) {
         LazyColumn(
@@ -69,11 +69,11 @@ fun HomeScreen(dark: Boolean, onToggleDark: () -> Unit, onOpenCategories: () -> 
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     MIconView(MIcon.Calendar, OnHero, size = 16.dp)
-                    Text("Tháng 10, 2026", color = OnHero, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Tháng ${java.time.LocalDate.now().monthValue}, ${java.time.LocalDate.now().year}", color = OnHero, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     MIconView(MIcon.ChevronDown, OnHero, size = 14.dp)
                 }
             }
-            item(key = "hero", contentType = "hero") { BalanceCard() }
+            item(key = "hero", contentType = "hero") { BalanceCard(state) }
             item(key = "quick", contentType = "quick") {
                 Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     QuickAction(MIcon.ArrowDown, "Thu nhập", Modifier.weight(1f)) { onAdd(1) }
@@ -81,26 +81,31 @@ fun HomeScreen(dark: Boolean, onToggleDark: () -> Unit, onOpenCategories: () -> 
                     QuickAction(MIcon.Transfer, "Chuyển khoản", Modifier.weight(1f)) { }
                 }
             }
-            item(key = "budget", contentType = "budget") { BudgetStrip() }
+            item(key = "budget", contentType = "budget") { BudgetStrip(state) }
             item(key = "recent_title", contentType = "title") {
                 Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Giao dịch gần đây", color = Color(0xFF17382E).takeIf { !c.dark } ?: c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     Text("Xem tất cả", color = if (c.dark) Color(0xFFB8DFC5) else Color(0xFF285C49), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            items(SampleData.transactions, key = { it.id }, contentType = { "tx" }) { TxRow(it) }
+            if (state.loaded && state.recent.isEmpty()) {
+                item(key = "empty", contentType = "empty") {
+                    Text("Chưa có giao dịch. Nhấn + để thêm giao dịch đầu tiên.", color = if (c.dark) c.muted else Color(0xFF17382E), fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
+                }
+            }
+            items(state.recent, key = { it.id }, contentType = { "tx" }) { TxRow(it) }
         }
     }
 }
 
 @Composable
-private fun BalanceCard() {
+private fun BalanceCard(state: HomeState) {
     Column(Modifier.fillMaxWidth().raised(radius = 16.dp, depth = 6.dp, brush = mc.heroBrush).padding(24.dp)) {
         Text("Tổng số dư", color = OnHero.copy(alpha = .88f), fontSize = 12.sp)
-        Text("24.680.000 ₫", color = OnHero, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+        Text(Money.format(state.totalBalance), color = OnHero, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
         Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Metric(MIcon.ArrowDown, "Thu nhập", "20.500.000 ₫", Color(0xFF9EE5B4), Modifier.weight(1f))
-            Metric(MIcon.ArrowUp, "Chi tiêu", "8.320.000 ₫", Color(0xFFFFAD9E), Modifier.weight(1f))
+            Metric(MIcon.ArrowDown, "Thu nhập", Money.format(state.monthIncome), Color(0xFF9EE5B4), Modifier.weight(1f))
+            Metric(MIcon.ArrowUp, "Chi tiêu", Money.format(state.monthExpense), Color(0xFFFFAD9E), Modifier.weight(1f))
         }
     }
 }
@@ -136,7 +141,9 @@ private fun QuickAction(icon: MIcon, label: String, modifier: Modifier, onClick:
 }
 
 @Composable
-private fun BudgetStrip() {
+private fun BudgetStrip(state: HomeState) {
+    val limit = state.budgetLimit
+    val frac = if (limit == null || limit <= 0) 0f else (state.budgetSpent.toFloat() / limit).coerceIn(0f, 1f)
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassFill)
             .background(Color.Transparent).padding(16.dp),
@@ -148,12 +155,12 @@ private fun BudgetStrip() {
                 }
                 Text("Hạn mức tháng", color = OnHero, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
-            Text("65%", color = OnHero, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(if (limit == null) "—" else "${(frac * 100).toInt()}%", color = OnHero, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-        AppProgress(.65f, Modifier.padding(vertical = 8.dp), trackColor = Color(0x57113729), fillColor = Color(0xFFB9E3C5))
+        AppProgress(frac, Modifier.padding(vertical = 8.dp), trackColor = Color(0x57113729), fillColor = Color(0xFFB9E3C5))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Đã dùng 8.320.000 ₫", color = OnHero.copy(alpha = .92f), fontSize = 10.sp)
-            Text("12.800.000 ₫", color = OnHero.copy(alpha = .92f), fontSize = 10.sp)
+            Text(if (limit == null) "Chưa đặt hạn mức tháng" else "Đã dùng ${Money.format(state.budgetSpent)}", color = OnHero.copy(alpha = .92f), fontSize = 10.sp)
+            Text(if (limit == null) "" else Money.format(limit), color = OnHero.copy(alpha = .92f), fontSize = 10.sp)
         }
     }
 }

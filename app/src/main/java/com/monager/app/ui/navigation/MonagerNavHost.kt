@@ -18,6 +18,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.monager.app.ui.AddTransactionViewModel
+import com.monager.app.ui.AppViewModelFactory
+import com.monager.app.ui.HomeViewModel
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,6 +56,9 @@ enum class Tab(val icon: MIcon, val label: String) {
 @Composable
 fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> Unit) {
     val c = mc
+    val factory = remember(container) { AppViewModelFactory(container) }
+    val homeVm: HomeViewModel = viewModel(factory = factory)
+    val homeState by homeVm.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(Tab.Home.ordinal) }
     var inCategories by rememberSaveable { mutableStateOf(false) }
     var addType by rememberSaveable { mutableIntStateOf(-1) } // -1 = sheet closed
@@ -67,7 +76,7 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> U
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when {
             inCategories -> CategoriesScreen(onBack = { inCategories = false })
-            tab == Tab.Home.ordinal -> HomeScreen(dark, onToggleDark, { inCategories = true }, { addType = it })
+            tab == Tab.Home.ordinal -> HomeScreen(homeState, dark, onToggleDark, { inCategories = true }, { addType = it })
             tab == Tab.Stats.ordinal -> StatsScreen()
             tab == Tab.Budgets.ordinal -> BudgetsScreen()
             else -> DebtsScreen()
@@ -80,7 +89,10 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> U
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
-        if (addType >= 0) AddTransactionSheet(initialType = addType, onClose = { addType = -1 })
+        if (addType >= 0) {
+            val addVm: AddTransactionViewModel = viewModel(factory = factory)
+            AddTransactionSheet(addVm, initialType = addType, onClose = { addType = -1 })
+        }
     }
 }
 

@@ -35,7 +35,12 @@ import com.monager.app.ui.theme.mc
 @Immutable
 enum class Tone(val fg: Color) {
     Mint(Color(0xFF168145)), Sage(Color(0xFF16A34A)), Blue(Color(0xFF2563EB)), Peach(Color(0xFFD95813)),
-    Yellow(Color(0xFFA97003)), Purple(Color(0xFF7C3AED)), Gray(Color(0xFF64748B)),
+    Yellow(Color(0xFFA97003)), Purple(Color(0xFF7C3AED)), Gray(Color(0xFF64748B));
+
+    companion object {
+        private val byName = entries.associateBy { it.name }
+        fun fromKey(key: String?): Tone = byName[key] ?: Gray
+    }
 }
 
 @Composable

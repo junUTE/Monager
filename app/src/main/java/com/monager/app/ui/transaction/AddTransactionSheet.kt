@@ -15,125 +15,221 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.monager.app.core.AmountInput
 import com.monager.app.core.Money
+import com.monager.app.core.TimeRanges
+import com.monager.app.data.local.entity.TransactionEntity
+import com.monager.app.data.local.entity.TxType
+import com.monager.app.ui.AddTransactionViewModel
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.CategoryIcon
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.SegmentedTabs
-import com.monager.app.ui.sample.SampleData
+import com.monager.app.ui.components.Tone
 import com.monager.app.ui.theme.mc
+import java.time.LocalDate
+import java.time.ZoneId
 
 private val Types = listOf("Chi tiêu", "Thu nhập", "Tiết kiệm")
-private val Keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "0", "del")
-private const val MaxDigits = 12 // keeps the value inside Long range
+private val KeyRows = listOf(
+    listOf("C", "÷", "×", "⌫"),
+    listOf("7", "8", "9", "−"),
+    listOf("4", "5", "6", "+"),
+    listOf("1", "2", "3", "="),
+    listOf("000", "0"),
+)
+private val Operators = setOf("÷", "×", "−", "+", "=")
+private val DayLabels = listOf("Hôm nay", "Hôm qua", "2 ngày trước")
 
 @Composable
-fun AddTransactionSheet(initialType: Int, onClose: () -> Unit) {
+fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: () -> Unit) {
     val c = mc
     var type by rememberSaveable { mutableIntStateOf(initialType) }
-    var digits by rememberSaveable { mutableStateOf("250000") }
-    var category by rememberSaveable { mutableIntStateOf(0) }
+    var expression by rememberSaveable { mutableStateOf("") }
+    var parentId by rememberSaveable { mutableLongStateOf(-1L) }
+    var childId by rememberSaveable { mutableLongStateOf(-1L) }
+    var vaultId by rememberSaveable { mutableLongStateOf(-1L) }
+    var walletIdx by rememberSaveable { mutableIntStateOf(0) }
+    var daysAgo by rememberSaveable { mutableIntStateOf(0) }
+    var note by rememberSaveable { mutableStateOf("") }
+
+    val txType = when (type) { 1 -> TxType.INCOME; 2 -> TxType.SAVING; else -> TxType.EXPENSE }
+    val tree by remember(txType) { vm.tree(if (txType == TxType.INCOME) TxType.INCOME else TxType.EXPENSE) }
+        .collectAsStateWithLifecycle(emptyList())
+    val wallets by vm.wallets.collectAsStateWithLifecycle()
+    val vaults by vm.vaults.collectAsStateWithLifecycle()
+    val input = AmountInput(expression)
+    val amount = input.result ?: 0L
+    val selectedNode = tree.firstOrNull { it.parent.id == parentId }
+    val wallet = wallets.getOrNull(walletIdx % wallets.size.coerceAtLeast(1))
+    val categoryId = if (childId >= 0 && selectedNode?.children?.any { it.id == childId } == true) childId else parentId.takeIf { it >= 0 && selectedNode != null }
+    val canSave = amount > 0 && wallet != null && when (txType) {
+        TxType.SAVING -> vaultId >= 0 && vaults.any { it.id == vaultId }
+        else -> categoryId != null
+    }
 
     Box(
         Modifier.fillMaxSize().background(Color(0xA309190F))
-            .clickable(interactionSource = MutableInteractionSource(), indication = null, onClick = onClose),
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
             Modifier.fillMaxWidth().statusBarsPadding().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .background(c.bg)
-                .clickable(interactionSource = MutableInteractionSource(), indication = null) {}
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                 .navigationBarsPadding().padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp),
         ) {
             Box(Modifier.align(Alignment.CenterHorizontally).size(36.dp, 4.dp).clip(RoundedCornerShape(5.dp)).background(c.muted.copy(alpha = .5f)))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 AppIconButton(MIcon.Close, "Đóng", onClose, c.text)
                 Text("Thêm giao dịch", color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                Text("Lưu", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onClose).padding(8.dp))
+                Text(
+                    "Lưu", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.alpha(if (canSave) 1f else .4f).clickable(enabled = canSave) { save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, daysAgo, onClose) }.padding(8.dp),
+                )
             }
-            SegmentedTabs(Types, type, { type = it })
-            Row(Modifier.fillMaxWidth().height(72.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Text("₫ ", color = c.muted, fontSize = 17.sp)
-                Text(Money.plain(digits.toLongOrNull() ?: 0L), color = c.text, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            SegmentedTabs(Types, type, { type = it; parentId = -1; childId = -1 })
+
+            // Amount: result of the calculator; the typed expression shows above when it has operators.
+            Column(Modifier.fillMaxWidth().height(78.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text(if (input.hasOperator) expression else " ", color = c.muted, fontSize = 13.sp, maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("₫ ", color = c.muted, fontSize = 17.sp)
+                    Text(Money.plain(amount), color = c.text, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                }
             }
-            Text("Chọn danh mục", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SampleData.pickCategories.forEachIndexed { i, p ->
-                    Column(
-                        Modifier.weight(1f).clickable(interactionSource = MutableInteractionSource(), indication = null) { category = i },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Box(
-                            Modifier.clip(RoundedCornerShape(12.dp)).then(
-                                if (i == category) Modifier.border(2.dp, c.primary, RoundedCornerShape(12.dp)) else Modifier,
-                            ),
-                        ) { CategoryIcon(p.icon, p.tone, selected = i == category) }
-                        Text(
-                            p.name, color = if (i == category) c.primary else c.muted, fontSize = 9.sp, maxLines = 1,
-                            fontWeight = if (i == category) FontWeight.Bold else FontWeight.Normal,
-                        )
+
+            if (txType == TxType.SAVING) {
+                Text("Chọn quỹ tiết kiệm", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(vaults, key = { it.id }) { v ->
+                        PickItem(MIcon.fromKey(v.iconKey), Tone.Yellow, v.name, v.id == vaultId) { vaultId = v.id }
+                    }
+                }
+            } else {
+                Text("Chọn danh mục", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(tree, key = { it.parent.id }) { n ->
+                        PickItem(MIcon.fromKey(n.parent.iconKey), Tone.fromKey(n.parent.toneKey), n.parent.name, n.parent.id == parentId) { parentId = n.parent.id; childId = -1 }
+                    }
+                }
+                if (selectedNode != null && selectedNode.children.isNotEmpty()) {
+                    LazyRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(selectedNode.children, key = { it.id }) { ch ->
+                            val on = ch.id == childId
+                            Text(
+                                ch.name, color = if (on) c.onPrimary else c.muted, fontSize = 10.sp,
+                                modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) c.primary else c.surface2)
+                                    .clickable { childId = if (on) -1 else ch.id }.padding(horizontal = 11.dp, vertical = 6.dp),
+                            )
+                        }
                     }
                 }
             }
+
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FormField(MIcon.Calendar, "Ngày", "Hôm nay, 26/10", Modifier.weight(1f))
-                FormField(MIcon.Wallet, "Ví", "Tiền mặt", Modifier.weight(1f))
+                FormField(MIcon.Calendar, "Ngày", DayLabels[daysAgo], Modifier.weight(1f)) { daysAgo = (daysAgo + 1) % DayLabels.size }
+                FormField(MIcon.Wallet, "Ví", wallet?.name ?: "—", Modifier.weight(1f)) { if (wallets.size > 1) walletIdx = (walletIdx + 1) % wallets.size }
             }
-            RaisedBox(Modifier.fillMaxWidth().padding(top = 8.dp).height(40.dp), radius = 11.dp, contentAlignment = Alignment.CenterStart) {
-                Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    MIconView(MIcon.Edit, c.muted, size = 18.dp)
-                    Text("Thêm ghi chú", color = c.muted, fontSize = 11.sp)
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp).height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.surface2).padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                MIconView(MIcon.Edit, c.muted, size = 18.dp)
+                Box(Modifier.weight(1f)) {
+                    if (note.isEmpty()) Text("Thêm ghi chú", color = c.muted, fontSize = 11.sp)
+                    BasicTextField(note, { if (it.length <= 80) note = it }, singleLine = true, textStyle = TextStyle(color = c.text, fontSize = 12.sp), cursorBrush = SolidColor(c.primary))
                 }
             }
-            Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Keys.chunked(3).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+
+            Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                KeyRows.forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         row.forEach { k ->
-                            RaisedBox(Modifier.weight(1f).height(42.dp), radius = 10.dp, onClick = {
-                                digits = when {
-                                    k == "del" -> digits.dropLast(1).ifEmpty { "0" }
-                                    digits.length + k.length > MaxDigits -> digits
-                                    digits == "0" -> k.trimStart('0').ifEmpty { "0" }
-                                    else -> digits + k
+                            val wide = k == "000" || k == "0"
+                            RaisedBox(
+                                Modifier.weight(if (wide) 2f else 1f).height(40.dp), radius = 10.dp,
+                                onClick = { expression = AmountInput(expression).press(k).expression },
+                            ) {
+                                when (k) {
+                                    "⌫" -> MIconView(MIcon.Delete, c.text)
+                                    else -> Text(k, color = if (k in Operators) c.primary else c.text, fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
                                 }
-                            }) {
-                                if (k == "del") MIconView(MIcon.Delete, c.text)
-                                else Text(k, color = c.text, fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
                             }
                         }
                     }
                 }
             }
-            RaisedBox(Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp), radius = 13.dp, brush = c.heroBrush, onClick = onClose) {
-                Text("Lưu giao dịch", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
+            RaisedBox(
+                Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp).alpha(if (canSave) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
+                onClick = { if (canSave) save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, daysAgo, onClose) },
+            ) { Text("Lưu giao dịch", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }
 
+private fun save(vm: AddTransactionViewModel, type: TxType, amount: Long, categoryId: Long?, vaultId: Long, walletId: Long, note: String, daysAgo: Int, onDone: () -> Unit) {
+    val day = LocalDate.now().minusDays(daysAgo.toLong())
+    // Today keeps the real time; past days use midday so they sort sensibly.
+    val ts = if (daysAgo == 0) System.currentTimeMillis() else day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    vm.save(
+        TransactionEntity(
+            walletId = walletId, type = type, amount = amount,
+            categoryId = if (type == TxType.SAVING) null else categoryId,
+            vaultId = if (type == TxType.SAVING) vaultId else null,
+            note = note.trim(), timestamp = ts,
+        ),
+        onDone,
+    )
+}
+
 @Composable
-private fun FormField(icon: MIcon, label: String, value: String, modifier: Modifier) {
+private fun PickItem(icon: MIcon, tone: Tone, label: String, selected: Boolean, onClick: () -> Unit) {
     val c = mc
-    RaisedBox(modifier.height(46.dp), radius = 11.dp, contentAlignment = Alignment.CenterStart) {
+    Column(
+        Modifier.width56().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(Modifier.clip(RoundedCornerShape(12.dp)).then(if (selected) Modifier.border(2.dp, c.primary, RoundedCornerShape(12.dp)) else Modifier)) {
+            CategoryIcon(icon, tone, selected = selected)
+        }
+        Text(label, color = if (selected) c.primary else c.muted, fontSize = 9.sp, maxLines = 1, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+    }
+}
+
+private fun Modifier.width56() = this.then(Modifier.size(width = 56.dp, height = 66.dp))
+
+@Composable
+private fun FormField(icon: MIcon, label: String, value: String, modifier: Modifier, onClick: () -> Unit) {
+    val c = mc
+    RaisedBox(modifier.height(46.dp), radius = 11.dp, onClick = onClick, contentAlignment = Alignment.CenterStart) {
         Row(Modifier.padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             MIconView(icon, c.primary, size = 18.dp)
             Column(Modifier.weight(1f, fill = false)) {

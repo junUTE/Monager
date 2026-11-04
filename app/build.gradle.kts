@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.monager.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.monager.app"
@@ -16,7 +16,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         // Keep only the languages you ship.
-        androidResources.localeFilters += listOf("vi", "en")
+        resourceConfigurations += listOf("vi", "en")
     }
 
     buildTypes {
@@ -34,6 +34,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    testOptions { unitTests.isIncludeAndroidResources = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
@@ -65,5 +66,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.room.testing)
 }

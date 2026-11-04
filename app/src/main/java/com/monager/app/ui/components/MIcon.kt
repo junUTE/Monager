@@ -62,6 +62,12 @@ enum class MIcon(private val path: String) {
     Phone(rect(5f, 2f, 14f, 20f) + "M9 18h6"),
     Sparkles("M12 3l1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8ZM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6Z");
 
+    companion object {
+        private val byName = entries.associateBy { it.name }
+        /** Registry lookup for icons stored in Room as iconKey; unknown keys fall back to More. */
+        fun fromKey(key: String?): MIcon = byName[key] ?: More
+    }
+
     val vector: ImageVector by lazy(LazyThreadSafetyMode.NONE) {
         ImageVector.Builder(
             name = name,

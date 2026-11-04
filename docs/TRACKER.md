@@ -1,16 +1,16 @@
 # Monager – Progress Tracker
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[!]` blocked. Update this file with every PR.
-Last updated: 2026-11-04
+Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 
 ## Summary
 
 | Milestone | Status | Done / Total |
 |-----------|--------|--------------|
-| M0 Foundation | in progress | 2 / 7 |
-| M1 Data layer | not started | 0 / 6 |
-| M2 Add Transaction | not started | 0 / 9 |
-| M3 Home | not started | 0 / 6 |
+| M0 Foundation | in progress | 7 / 8 |
+| M1 Data layer | done | 6 / 6 |
+| M2 Add Transaction | in progress | 8 / 9 |
+| M3 Home | in progress | 5 / 6 |
 | M4 Categories | not started | 0 / 6 |
 | M5 Budgets & Savings | not started | 0 / 7 |
 | M6 Debts | not started | 0 / 7 |
@@ -22,37 +22,38 @@ Last updated: 2026-11-04
 ## M0 Foundation
 - [x] Repo skeleton, Gradle, version catalog (pushed to GitHub)
 - [x] Room v1 draft schema + DAOs
-- [ ] Verify build on Android Studio, bump dependency versions
-- [ ] Design tokens (light + dark), typography
-- [ ] Shared components: `RaisedCard`, `RaisedButton`, `Chip`, `TopBar`, bottom nav
-- [ ] Icon registry + first 20 vector icons
-- [ ] Seed default wallet + categories on first run
+- [x] Build verified from CLI (Gradle 8.9 + Studio JBR): `assembleDebug` OK, debug APK 10.8 MB. Not yet run on a device
+- [ ] Bump dependency versions to latest stable (still the versions I chose from memory)
+- [x] Design tokens (light + dark), typography — ui/theme/Theme.kt
+- [x] Shared components: `RaisedCard`, `RaisedButton`, `Chip`, `TopBar`, bottom nav — raised()/RaisedBox, SegmentedTabs, AppProgress, ScreenHeader, bottom nav
+- [x] Icon registry + first 20 vector icons — 40 icons, `MIcon.fromKey`
+- [x] Seed default wallet + categories on first run — SeedCallback (wallet, vault, 8 parents + 7 subcategories)
 
 ## M1 Data layer
-- [ ] Schema v1 final (parentId, sortOrder, vaults, debt_payments, SAVING/TRANSFER)
-- [ ] DAOs + repositories for all entities
-- [ ] SQL aggregates: totals by period, by category, monthly series
-- [ ] Debt payment transaction (`@Transaction`)
-- [ ] In-memory DAO tests
-- [ ] Export schema JSON committed
+- [x] Schema v1 final (parentId, sortOrder, vaults, debt_payments, SAVING/TRANSFER)
+- [x] DAOs + repositories for all entities
+- [x] SQL aggregates: totals by period, by category, monthly series — totals, by-parent roll-up, time buckets, balance, budget spent
+- [x] Debt payment transaction (`@Transaction`) — DebtRepository.pay, validated against remaining
+- [x] In-memory DAO tests — 15 Robolectric tests on JVM, all pass
+- [x] Export schema JSON committed — app/schemas/.../1.json
 
 ## M2 Add Transaction (F1)
-- [ ] Mode switch Expense / Income / Saving
-- [ ] `CalcEngine` (+ − × ÷, "k" suffix) with unit tests
-- [ ] 3D numpad UI with Backspace and C
-- [ ] Live result preview (e.g. 50k + 30k → 80.000 đ)
-- [ ] 2-level category picker (parent → child)
-- [ ] Date/time picker
-- [ ] Note field
-- [ ] Wallet/account selector
-- [ ] Save + validation + haptic feedback
+- [x] Mode switch Expense / Income / Saving
+- [x] `CalcEngine` (+ − × ÷, "k" suffix) with unit tests — 12 tests; "k" supported by engine, no k key on numpad yet
+- [x] 3D numpad UI with Backspace and C — 5 rows: C ÷ × ⌫ / 7-9 − / 4-6 + / 1-3 = / 000 0
+- [x] Live result preview (e.g. 50k + 30k → 80.000 đ) — expression line + big result
+- [x] 2-level category picker (parent → child) — from Room
+- [~] Date/time picker — tap cycles Hôm nay / Hôm qua / 2 ngày trước; real picker + time still todo
+- [x] Note field
+- [x] Wallet/account selector — tap cycles wallets (single seeded wallet for now)
+- [x] Save + validation + haptic feedback — saves to Room with validation; haptic not done
 
 ## M3 Home (F2)
-- [ ] Hero 3D balance card (total, month income, month expense)
-- [ ] Quick actions (+Expense, +Income, Transfer)
-- [ ] Mini budget progress bar
-- [ ] Recent transactions timeline (Today / Yesterday / date headers)
-- [ ] Income green (+) / expense red (−), 40x40dp vector icons
+- [x] Hero 3D balance card (total, month income, month expense) — real data from Room
+- [x] Quick actions (+Expense, +Income, Transfer) — Transfer button has no action yet
+- [x] Mini budget progress bar — reads the overall monthly budget; no UI to set one yet
+- [x] Recent transactions timeline (Today / Yesterday / date headers) — row-level date labels, 20 latest
+- [x] Income green (+) / expense red (−), 40x40dp vector icons
 - [ ] Jank check on Moto G35
 
 ## M4 Categories (F6)
@@ -136,3 +137,11 @@ Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample
 - [ ] Drag-to-reorder categories, thumb dragging on budget bars (visual only for now)
 - [ ] Replace SampleData with ViewModels + Room
 - [ ] Persist theme in DataStore
+
+## Test status
+- 39 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, Database/Repository 15 (Robolectric).
+- No UI tests, no device/emulator run yet.
+
+## Next up
+- M4 Categories screen on Room (CRUD, reorder, delete rules), M5 Budgets & Savings on Room, M6 Debts on Room, M7 Analytics on Room.
+- Static screens still on SampleData: Stats, Budgets, Debts, Categories.
