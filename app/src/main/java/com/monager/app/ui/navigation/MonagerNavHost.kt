@@ -1,6 +1,7 @@
 package com.monager.app.ui.navigation
 
 import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -45,6 +46,7 @@ import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.debts.DebtsScreen
 import com.monager.app.ui.home.HomeScreen
+import com.monager.app.ui.settings.SettingsScreen
 import com.monager.app.ui.theme.mc
 import com.monager.app.ui.transaction.AddTransactionSheet
 
@@ -61,9 +63,18 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> U
     val homeState by homeVm.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(Tab.Home.ordinal) }
     var inCategories by rememberSaveable { mutableStateOf(false) }
+    var inSettings by rememberSaveable { mutableStateOf(false) }
     var addType by rememberSaveable { mutableIntStateOf(-1) } // -1 = sheet closed
 
-    val onHomeTop = tab == Tab.Home.ordinal && !inCategories
+    val onHomeTop = tab == Tab.Home.ordinal && !inCategories && !inSettings
+    // System back: close the add sheet, then categories, then settings.
+    BackHandler(enabled = addType >= 0 || inCategories || inSettings) {
+        when {
+            addType >= 0 -> addType = -1
+            inCategories -> inCategories = false
+            else -> inSettings = false
+        }
+    }
     // Light status-bar icons over the dark green home header, dark icons elsewhere in light theme.
     val view = LocalView.current
     SideEffect {
@@ -76,12 +87,13 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> U
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when {
             inCategories -> CategoriesScreen(viewModel(factory = factory), onBack = { inCategories = false })
-            tab == Tab.Home.ordinal -> HomeScreen(homeState, dark, onToggleDark, { inCategories = true }, { addType = it })
+            inSettings -> SettingsScreen(viewModel(factory = factory), onBack = { inSettings = false }, onOpenCategories = { inCategories = true })
+            tab == Tab.Home.ordinal -> HomeScreen(homeState, dark, onToggleDark, { inSettings = true }, { addType = it })
             tab == Tab.Stats.ordinal -> StatsScreen(viewModel(factory = factory))
             tab == Tab.Budgets.ordinal -> BudgetsScreen(viewModel(factory = factory))
             else -> DebtsScreen(viewModel(factory = factory))
         }
-        if (!inCategories) {
+        if (!inCategories && !inSettings) {
             BottomNav(
                 selected = tab,
                 onSelect = { tab = it },

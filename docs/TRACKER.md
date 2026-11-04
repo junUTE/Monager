@@ -15,7 +15,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 | M5 Budgets & Savings | in progress | 4 / 7 |
 | M6 Debts | done | 7 / 7 |
 | M7 Analytics | in progress | 6 / 7 |
-| M8 Settings & Data | not started | 0 / 6 |
+| M8 Settings & Data | in progress | 5 / 6 |
 | M9 Performance | not started | 0 / 6 |
 | M10 Release | not started | 0 / 5 |
 
@@ -92,12 +92,12 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [~] Zero-allocation draw: code-reviewed (Stroke/CornerRadius remembered, sweeps and fractions precomputed) but NOT profiled — verify in M9 with the Android Studio profiler
 
 ## M8 Settings & Data (F7)
-- [ ] Theme: Light / Dark / System
-- [ ] Export JSON (full)
-- [ ] Export CSV (transactions)
-- [ ] Import JSON with validation + transaction
-- [ ] Currency / locale formatting setting
-- [ ] About + data size info
+- [x] Theme: Light / Dark / System (saved in DataStore; Home sun/moon button also saves)
+- [x] Export JSON (full backup of all 7 tables, via the system file picker)
+- [x] Export CSV (UTF-8 with BOM for Excel; formula-looking text is neutralised) and Excel .xlsx (hand-written writer, amounts stored as numbers)
+- [x] Import: JSON restore (validated, confirm dialog, atomic replace) + CSV/Excel append (auto-detect, header-name or positional columns, creates missing categories/wallets/vaults, skips duplicates, reports bad rows)
+- [ ] Currency / locale formatting setting — deferred: the app is VND-only for now
+- [x] About + data size info (offline note, transaction count, DB size)
 
 ## M9 Performance hardening
 - [ ] Baseline Profile + Startup Profile
@@ -139,11 +139,11 @@ Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample
 - [ ] Persist theme in DataStore
 
 ## Test status
-- 60 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, DebtMath 6, Periods 10, Database/Repository 20 (Robolectric).
+- 89 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, DebtMath 6, Periods 10, Database/Repository 20, Backup/Import/Export 14, Codecs 15 (Robolectric).
 - No UI tests, no device/emulator run yet.
 
 ## Next up
-- M8 Settings & Data (theme persistence, JSON/CSV backup and restore). M5 leftovers: rollover (optional), vault delete, draggable thumb.
+- M9 Performance hardening, then M10 Release. Not yet device-tested: file picker flows (export/import) and the Excel files opening in real Excel/Sheets. M5 leftovers: rollover (optional), vault delete, draggable thumb.
 - All five screens now read Room; the sample-data file is deleted.
 - Debug APK grew 10.8 -> 14.4 MB across M4-M7 (debug is unminified); measure the release build in M9.
 - Due-date reminders ("nhắc trước 3 ngày" in the mockup) are NOT implemented; the note was removed from the UI so it does not promise it. Needs a notification permission + WorkManager; decide in M8/M10.

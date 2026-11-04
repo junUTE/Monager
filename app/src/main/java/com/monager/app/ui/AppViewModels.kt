@@ -16,6 +16,7 @@ import com.monager.app.di.AppContainer
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.analytics.AnalyticsViewModel
 import com.monager.app.ui.debts.DebtsViewModel
+import com.monager.app.ui.settings.SettingsViewModel
 import com.monager.app.ui.components.Tone
 import com.monager.app.ui.model.TxItem
 import kotlinx.coroutines.Dispatchers
@@ -200,6 +201,7 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
         BudgetsViewModel::class.java -> BudgetsViewModel(container)
         DebtsViewModel::class.java -> DebtsViewModel(container)
         AnalyticsViewModel::class.java -> AnalyticsViewModel(container)
+        SettingsViewModel::class.java -> SettingsViewModel(container)
         else -> throw IllegalArgumentException("Unknown ViewModel ${modelClass.name}")
     } as T
 }

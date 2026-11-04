@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.monager.app.data.local.dao.BackupDao
 import com.monager.app.data.local.dao.BudgetDao
 import com.monager.app.data.local.dao.CategoryDao
 import com.monager.app.data.local.dao.DebtDao
@@ -37,6 +38,7 @@ abstract class MonagerDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun vaultDao(): VaultDao
     abstract fun debtDao(): DebtDao
+    abstract fun backupDao(): BackupDao
 
     companion object {
         /** [seed] true in production; tests pass false to start from an empty database. */

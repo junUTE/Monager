@@ -6,11 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.monager.app.data.prefs.ThemeMode
 import com.monager.app.ui.navigation.MonagerNavHost
 import com.monager.app.ui.theme.MonagerTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,11 +19,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val container = (application as MonagerApp).container
         setContent {
-            // TODO(M8): persist theme choice in DataStore (Light / Dark / System).
-            var dark by rememberSaveable { mutableStateOf<Boolean?>(null) }
-            val isDark = dark ?: isSystemInDarkTheme()
+            val mode by container.settings.themeMode.collectAsStateWithLifecycle(ThemeMode.SYSTEM)
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (mode) { ThemeMode.DARK -> true; ThemeMode.LIGHT -> false; ThemeMode.SYSTEM -> systemDark }
             MonagerTheme(isDark) {
-                MonagerNavHost(container, isDark, onToggleDark = { dark = !isDark })
+                MonagerNavHost(container, isDark, onToggleDark = {
+                    lifecycleScope.launch { container.settings.setThemeMode(if (isDark) ThemeMode.LIGHT else ThemeMode.DARK) }
+                })
             }
         }
     }
