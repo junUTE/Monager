@@ -16,6 +16,9 @@ import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.Tone
 import com.monager.app.ui.sample.TxItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -90,11 +93,48 @@ class AddTransactionViewModel(private val c: AppContainer) : ViewModel() {
     }
 }
 
+class CategoriesViewModel(private val c: AppContainer) : ViewModel() {
+    private val type = MutableStateFlow(TxType.EXPENSE)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val tree: StateFlow<List<CategoryNode>> = type.flatMapLatest { c.categories.tree(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setType(t: TxType) { type.value = t }
+
+    /** id == 0 creates (as subcategory when [parentId] != null); otherwise updates name/icon/tone. */
+    fun save(id: Long, parentId: Long?, name: String, iconKey: String, toneKey: String, onDone: () -> Unit) {
+        viewModelScope.launch {
+            if (id == 0L) c.categories.add(name, type.value, parentId, iconKey, toneKey)
+            else tree.value.flatMap { listOf(it.parent) + it.children }.firstOrNull { it.id == id }
+                ?.let { c.categories.rename(it, name, iconKey, toneKey) }
+            onDone()
+        }
+    }
+
+    /** Result false = category (or a child) still has transactions, so it was kept. */
+    fun delete(id: Long, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch { onResult(c.categories.deleteIfUnused(id)) }
+    }
+
+    /** Swaps a category with its previous (delta = -1) or next (delta = +1) sibling and persists the order. */
+    fun move(id: Long, delta: Int) {
+        val nodes = tree.value
+        val siblings = nodes.firstOrNull { n -> n.children.any { it.id == id } }?.children ?: nodes.map { it.parent }
+        val i = siblings.indexOfFirst { it.id == id }
+        val j = i + delta
+        if (i < 0 || j !in siblings.indices) return
+        val reordered = siblings.toMutableList().also { it[i] = siblings[j]; it[j] = siblings[i] }
+        viewModelScope.launch { c.categories.reorder(reordered) }
+    }
+}
+
 class AppViewModelFactory(private val container: AppContainer) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when (modelClass) {
         HomeViewModel::class.java -> HomeViewModel(container)
         AddTransactionViewModel::class.java -> AddTransactionViewModel(container)
+        CategoriesViewModel::class.java -> CategoriesViewModel(container)
         else -> throw IllegalArgumentException("Unknown ViewModel ${modelClass.name}")
     } as T
 }

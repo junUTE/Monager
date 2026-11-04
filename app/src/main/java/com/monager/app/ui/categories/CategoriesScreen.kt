@@ -33,26 +33,36 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.monager.app.data.local.entity.CategoryEntity
+import com.monager.app.data.local.entity.TxType
+import com.monager.app.data.repository.CategoryNode
+import com.monager.app.ui.CategoriesViewModel
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.CategoryIcon
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.ScreenHeader
 import com.monager.app.ui.components.SegmentedTabs
+import com.monager.app.ui.components.Tone
 import com.monager.app.ui.components.raised
-import com.monager.app.ui.sample.CategoryRow
-import com.monager.app.ui.sample.SampleData
 import com.monager.app.ui.theme.mc
 
 private val Tabs = listOf("Chi tiêu", "Thu nhập")
+private const val NONE = -1L
+private const val NEW = 0L
 
 @Composable
-fun CategoriesScreen(onBack: () -> Unit) {
+fun CategoriesScreen(vm: CategoriesViewModel, onBack: () -> Unit) {
     val c = mc
+    val tree by vm.tree.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var expanded by rememberSaveable { mutableLongStateOf(1L) }
-    var picker by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
-    val rows = if (tab == 0) SampleData.expenseCategories else SampleData.incomeCategories
+    var expanded by rememberSaveable { mutableLongStateOf(NONE) }
+    var editId by rememberSaveable { mutableLongStateOf(NONE) }      // NONE closed, NEW creating, else editing that id
+    var newParent by rememberSaveable { mutableLongStateOf(NONE) }   // parent for a new subcategory
+
+    val all = tree.flatMap { listOf(it.parent) + it.children }
+    val editing: CategoryEntity? = all.firstOrNull { it.id == editId }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         LazyColumn(
@@ -62,25 +72,28 @@ fun CategoriesScreen(onBack: () -> Unit) {
         ) {
             item(key = "h") {
                 ScreenHeader("Danh mục", "Sắp xếp và tùy chỉnh", onBack = onBack, right = {
-                    AppIconButton(MIcon.Plus, "Thêm danh mục", { picker = true }, c.primary)
+                    AppIconButton(MIcon.Plus, "Thêm danh mục", { newParent = NONE; editId = NEW }, c.primary)
                 })
             }
-            item(key = "tabs") { SegmentedTabs(Tabs, tab, { tab = it }) }
-            item(key = "hint") {
-                Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Nhấn giữ", color = c.muted, fontSize = 10.sp)
-                    MIconView(MIcon.Drag, c.muted, size = 14.dp)
-                    Text("để sắp xếp lại danh mục", color = c.muted, fontSize = 10.sp)
-                }
+            item(key = "tabs") {
+                SegmentedTabs(Tabs, tab, { tab = it; expanded = NONE; vm.setType(if (it == 0) TxType.EXPENSE else TxType.INCOME) })
             }
-            items(rows, key = { it.id }, contentType = { "cat" }) { row ->
-                CategoryGroup(row, row.id == expanded) { expanded = if (expanded == row.id) -1L else row.id }
+            item(key = "hint") {
+                Text("Mở danh mục để thêm danh mục con. Chạm ✎ để sửa, đổi thứ tự hoặc xóa.", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(vertical = 4.dp))
+            }
+            items(tree, key = { it.parent.id }, contentType = { "cat" }) { node ->
+                CategoryGroup(
+                    node, open = node.parent.id == expanded,
+                    onToggle = { expanded = if (expanded == node.parent.id) NONE else node.parent.id },
+                    onEdit = { editId = it },
+                    onAddChild = { newParent = node.parent.id; editId = NEW },
+                )
             }
             item(key = "add") {
                 Row(
                     Modifier.fillMaxWidth().padding(top = 8.dp).height(44.dp)
                         .border(1.dp, c.primary, RoundedCornerShape(13.dp))
-                        .clip(RoundedCornerShape(13.dp)).clickable { picker = true },
+                        .clip(RoundedCornerShape(13.dp)).clickable { newParent = NONE; editId = NEW },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
                 ) {
@@ -89,40 +102,56 @@ fun CategoriesScreen(onBack: () -> Unit) {
                 }
             }
         }
-        if (picker) IconPickerSheet(onClose = { picker = false })
+        if (editId == NEW || editing != null) {
+            val parentName = all.firstOrNull { it.id == newParent }?.name
+            CategoryEditSheet(
+                existing = editing,
+                parentName = if (editing == null) parentName else null,
+                onSave = { name, icon, tone ->
+                    vm.save(editing?.id ?: NEW, if (editing == null && newParent != NONE) newParent else null, name, icon, tone) { editId = NONE }
+                },
+                onDelete = if (editing == null) null else { onResult -> vm.delete(editing.id) { ok -> if (ok) editId = NONE; onResult(ok) } },
+                onMove = if (editing == null) null else { delta -> vm.move(editing.id, delta) },
+                onClose = { editId = NONE },
+            )
+        }
     }
 }
 
 @Composable
-private fun CategoryGroup(row: CategoryRow, open: Boolean, onToggle: () -> Unit) {
+private fun CategoryGroup(node: CategoryNode, open: Boolean, onToggle: () -> Unit, onEdit: (Long) -> Unit, onAddChild: () -> Unit) {
     val c = mc
+    val row = node.parent
     Column(Modifier.fillMaxWidth().raised(radius = 14.dp, depth = 3.dp)) {
         Row(
-            Modifier.fillMaxWidth().height(57.dp).clickable(onClick = onToggle).padding(start = 8.dp, end = 12.dp),
+            Modifier.fillMaxWidth().height(57.dp).clickable(onClick = onToggle).padding(start = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            MIconView(MIcon.Drag, c.muted.copy(alpha = .6f), size = 18.dp)
-            CategoryIcon(row.icon, row.tone, size = 36.dp)
+            CategoryIcon(MIcon.fromKey(row.iconKey), Tone.fromKey(row.toneKey), size = 36.dp)
             Text(row.name, color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            if (row.subs.isNotEmpty()) {
-                MIconView(MIcon.ChevronRight, c.muted, Modifier.graphicsLayer { rotationZ = if (open) 90f else 0f }, 17.dp)
-            }
-            MIconView(MIcon.Edit, c.muted, size = 17.dp)
+            MIconView(MIcon.ChevronRight, c.muted, Modifier.graphicsLayer { rotationZ = if (open) 90f else 0f }, 17.dp)
+            AppIconButton(MIcon.Edit, "Sửa ${row.name}", { onEdit(row.id) }, c.muted)
         }
-        AnimatedVisibility(open && row.subs.isNotEmpty()) {
+        AnimatedVisibility(open) {
             Column {
-                row.subs.forEach { sub ->
+                node.children.forEach { sub ->
                     Row(
-                        Modifier.fillMaxWidth().height(42.dp).padding(start = 47.dp, end = 13.dp),
+                        Modifier.fillMaxWidth().height(42.dp).padding(start = 47.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(9.dp),
                     ) {
-                        MIconView(MIcon.Drag, c.muted.copy(alpha = .6f), size = 16.dp)
                         Box(Modifier.size(6.dp).clip(CircleShape).background(c.primary))
-                        Text(sub, color = c.text, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                        MIconView(MIcon.Edit, c.muted, size = 16.dp)
+                        Text(sub.name, color = c.text, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                        AppIconButton(MIcon.Edit, "Sửa ${sub.name}", { onEdit(sub.id) }, c.muted)
                     }
+                }
+                Row(
+                    Modifier.fillMaxWidth().height(40.dp).clickable(onClick = onAddChild).padding(start = 47.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    MIconView(MIcon.Plus, c.primary, size = 16.dp)
+                    Text("Thêm danh mục con", color = c.primary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

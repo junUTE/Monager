@@ -11,7 +11,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 | M1 Data layer | done | 6 / 6 |
 | M2 Add Transaction | in progress | 8 / 9 |
 | M3 Home | in progress | 5 / 6 |
-| M4 Categories | not started | 0 / 6 |
+| M4 Categories | in progress | 5 / 6 |
 | M5 Budgets & Savings | not started | 0 / 7 |
 | M6 Debts | not started | 0 / 7 |
 | M7 Analytics | not started | 0 / 7 |
@@ -57,12 +57,12 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [ ] Jank check on Moto G35
 
 ## M4 Categories (F6)
-- [ ] List parents with children
-- [ ] Add / edit / delete category and subcategory
-- [ ] Reorder (drag or move up/down)
-- [ ] Icon + color picker
-- [ ] Delete rules (reassign or block if used)
-- [ ] Rich vector icon set (Lucide/Phosphor)
+- [x] List parents with children (Room, expandable)
+- [x] Add / edit / delete category and subcategory
+- [x] Reorder via Lên/Xuống in the edit sheet (no drag-and-drop)
+- [x] Icon + color picker
+- [x] Delete rules: blocked with a message when the category or a child has transactions (no reassign flow)
+- [~] Vector icon set — 24 icons selectable, 40 total in MIcon; the "rich" Lucide/Phosphor set is still to import
 
 ## M5 Budgets & Savings (F4)
 - [ ] Total monthly budget
@@ -143,5 +143,6 @@ Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample
 - No UI tests, no device/emulator run yet.
 
 ## Next up
-- M4 Categories screen on Room (CRUD, reorder, delete rules), M5 Budgets & Savings on Room, M6 Debts on Room, M7 Analytics on Room.
-- Static screens still on SampleData: Stats, Budgets, Debts, Categories.
+- M5 Budgets & Savings on Room, M6 Debts on Room, M7 Analytics on Room.
+- Static screens still on SampleData: Stats, Budgets, Debts.
+- M4 is covered by repository tests (reorder, delete rules, two-level limit); the Categories screen/ViewModel itself has no UI test and has not been run on a device.

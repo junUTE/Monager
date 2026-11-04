@@ -75,7 +75,7 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> U
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when {
-            inCategories -> CategoriesScreen(onBack = { inCategories = false })
+            inCategories -> CategoriesScreen(viewModel(factory = factory), onBack = { inCategories = false })
             tab == Tab.Home.ordinal -> HomeScreen(homeState, dark, onToggleDark, { inCategories = true }, { addType = it })
             tab == Tab.Stats.ordinal -> StatsScreen()
             tab == Tab.Budgets.ordinal -> BudgetsScreen()

@@ -60,5 +60,7 @@ object SampleData {
     val pickerIcons = listOf(
         MIcon.Utensils, MIcon.Coffee, MIcon.Car, MIcon.Plane, MIcon.ShoppingBag, MIcon.Receipt,
         MIcon.Phone, MIcon.House, MIcon.Heart, MIcon.Graduation, MIcon.Gift, MIcon.Briefcase,
+        MIcon.Wallet, MIcon.Sparkles, MIcon.Users, MIcon.Chart, MIcon.Calendar, MIcon.Transfer,
+        MIcon.Sun, MIcon.Moon, MIcon.Settings, MIcon.Search, MIcon.More, MIcon.Home,
     )
 }
