@@ -17,7 +17,7 @@ app/schemas/        exported Room schemas (commit them; used for migration tests
 
 Data flow: `Screen -> ViewModel (StateFlow) -> Repository -> DAO -> Room`. UI never touches DAOs.
 
-Rules (details in /Agent.md):
+Rules (details in /AGENTS.md):
 - money = `Long`; aggregate in SQL; lists need `key` + `contentType`
 - no blur / per-item shadow; hoist Brush/Path/formatters
 - commit `schemas/`; never `fallbackToDestructiveMigration`

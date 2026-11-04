@@ -1,6 +1,6 @@
 # Monager – Implementation Plan
 
-Offline-only, Kotlin + Compose + Room. Target: Moto G35 (60fps, 120Hz where cheap). Rules: `/Agent.md`. Architecture: `ARCHITECTURE.md`. Visual reference: `mockup/index.html`. Progress: `TRACKER.md`.
+Offline-only, Kotlin + Compose + Room. Target: Moto G35 (60fps, 120Hz where cheap). Rules: `/AGENTS.md`. Architecture: `ARCHITECTURE.md`. Visual reference: `mockup/index.html`. Progress: `TRACKER.md`.
 
 > Note: the Figma Make link could not be read (HTTP 403). Mockup is derived from the feature list; reconcile with Figma when exported.
 
@@ -49,7 +49,7 @@ Suggested order: M0 → M1 → M4 (seed/taxonomy) → M2 → M3 → M5 → M6 �
 - Cold start to first frame: <= 1.2s (release + Baseline Profile).
 - No `blur()`, no per-item `shadow()`, no allocation in draw scope; every list has `key` + `contentType`.
 - DB: queries on indexed columns; aggregates in SQL; month-windowed lists/Paging.
-- Each milestone's PR must list a "Performance notes" block (see Agent.md §7).
+- Each milestone's PR must list a "Performance notes" block (see AGENTS.md §7).
 
 ## Definition of Done (per feature)
 
