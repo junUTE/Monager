@@ -7,5 +7,6 @@ import java.util.Locale
 object Money {
     // Built once; NumberFormat is expensive to construct.
     private val vnd: NumberFormat = NumberFormat.getInstance(Locale("vi", "VN"))
-    fun format(amount: Long): String = vnd.format(amount) + " d"
+    fun plain(amount: Long): String = vnd.format(amount)
+    fun format(amount: Long): String = vnd.format(amount) + " ₫"
 }

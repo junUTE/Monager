@@ -122,3 +122,17 @@ Last updated: 2026-11-04
 ## Decisions / blockers
 
 - 2026-11-04: Figma Make link unreadable (403). Mockup built from feature list; awaiting exported frames to reconcile.
+
+## Front-end (Compose) status – added 2026-11-04
+Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample data in `ui/sample/SampleData.kt`); **not yet compiled or run on a device**.
+
+- [x] Theme tokens light + dark (`ui/theme/Theme.kt`)
+- [x] 40 vector icons from the mockup as in-code ImageVectors (`ui/components/MIcon.kt`)
+- [x] Cheap Neo-3D: `raised()` / `RaisedBox` (no blur, no shadow())
+- [x] Shared components: header, segmented tabs, progress (Canvas), cards
+- [x] Home, Stats (Canvas donut + bars), Budgets & Savings, Debts, Categories, Icon picker, Add Transaction sheet, bottom nav with center FAB, dark toggle
+- [ ] First compile + run on Moto G35; fix any build errors
+- [ ] Add Transaction: calculator operators (+ − × ÷) — mockup only has digits
+- [ ] Drag-to-reorder categories, thumb dragging on budget bars (visual only for now)
+- [ ] Replace SampleData with ViewModels + Room
+- [ ] Persist theme in DataStore
