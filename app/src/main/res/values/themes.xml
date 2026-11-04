@@ -1,0 +1,8 @@
+<resources>
+    <!-- Opaque cream window background: no white flash, less overdraw at launch. -->
+    <style name="Theme.Monager" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/monager_cream</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
