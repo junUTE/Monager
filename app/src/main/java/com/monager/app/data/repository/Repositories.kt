@@ -12,6 +12,7 @@ import com.monager.app.data.local.entity.DebtEntity
 import com.monager.app.data.local.entity.DebtPaymentEntity
 import com.monager.app.data.local.entity.TransactionEntity
 import com.monager.app.data.local.entity.TxType
+import com.monager.app.data.local.entity.VaultEntity
 import com.monager.app.data.local.entity.WalletEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -79,6 +80,12 @@ class WalletRepository(db: MonagerDatabase) {
 class VaultRepository(db: MonagerDatabase) {
     private val dao = db.vaultDao()
     fun vaults(): Flow<List<VaultWithSaved>> = dao.observeWithSaved()
+
+    /** Create (id == 0) or update. Vaults are not deletable yet: their SAVING transactions already left the wallet balance. */
+    suspend fun save(v: VaultEntity): Long {
+        require(v.name.isNotBlank() && v.target > 0)
+        return dao.upsert(v.copy(name = v.name.trim()))
+    }
 }
 
 class BudgetRepository(private val db: MonagerDatabase) {

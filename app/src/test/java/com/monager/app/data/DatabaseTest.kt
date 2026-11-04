@@ -155,6 +155,17 @@ class DatabaseTest {
         assertEquals(700L, debts.debts(false).first().single().paid)
     }
 
+    @Test fun vaultCreateUpdateAndProgress() = runBlocking {
+        val vaults = com.monager.app.data.repository.VaultRepository(db)
+        val id = vaults.save(com.monager.app.data.local.entity.VaultEntity(name = "  Laptop ", target = 1_000))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.SAVING, amount = 250, vaultId = id, timestamp = 2_000))
+        vaults.save(com.monager.app.data.local.entity.VaultEntity(id = id, name = "Laptop Pro", target = 2_000))
+        val v = vaults.vaults().first().first { it.vault.id == id }
+        assertEquals("Laptop Pro", v.vault.name); assertEquals(2_000L, v.vault.target); assertEquals(250L, v.saved)
+        assertThrows { vaults.save(com.monager.app.data.local.entity.VaultEntity(name = " ", target = 5)) }
+        assertThrows { vaults.save(com.monager.app.data.local.entity.VaultEntity(name = "X", target = 0)) }
+    }
+
     @Test fun insertedCategoryHasNoDuplicateConstraintIssues() = runBlocking {
         val id = db.categoryDao().insert(CategoryEntity(name = "X", type = TxType.EXPENSE, iconKey = "More", toneKey = "Gray"))
         assertTrue(id > 0)

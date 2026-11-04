@@ -78,7 +78,7 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> U
             inCategories -> CategoriesScreen(viewModel(factory = factory), onBack = { inCategories = false })
             tab == Tab.Home.ordinal -> HomeScreen(homeState, dark, onToggleDark, { inCategories = true }, { addType = it })
             tab == Tab.Stats.ordinal -> StatsScreen()
-            tab == Tab.Budgets.ordinal -> BudgetsScreen()
+            tab == Tab.Budgets.ordinal -> BudgetsScreen(viewModel(factory = factory))
             else -> DebtsScreen()
         }
         if (!inCategories) {

@@ -12,7 +12,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 | M2 Add Transaction | in progress | 8 / 9 |
 | M3 Home | in progress | 5 / 6 |
 | M4 Categories | in progress | 5 / 6 |
-| M5 Budgets & Savings | not started | 0 / 7 |
+| M5 Budgets & Savings | in progress | 4 / 7 |
 | M6 Debts | not started | 0 / 7 |
 | M7 Analytics | not started | 0 / 7 |
 | M8 Settings & Data | not started | 0 / 6 |
@@ -65,12 +65,12 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [~] Vector icon set — 24 icons selectable, 40 total in MIcon; the "rich" Lucide/Phosphor set is still to import
 
 ## M5 Budgets & Savings (F4)
-- [ ] Total monthly budget
-- [ ] Per-category budget
-- [ ] 3D progress bar with thumb handle
-- [ ] Red warning at ≥90%
-- [ ] Savings vault CRUD
-- [ ] Vault progress % (from SAVING transactions)
+- [x] Total monthly budget (set/edit/remove from the screen; Home strip reads it)
+- [x] Per-category budget (parent categories; spent includes subcategories)
+- [~] 3D progress bar with thumb handle — drawn with thumb, but not draggable; limits are set by typing the amount
+- [x] Red warning at ≥90% (bar, percent and overview ring)
+- [~] Savings vault: create, read, update done; delete deferred (savings already left the wallet balance)
+- [x] Vault progress % (from SAVING transactions)
 - [ ] Budget rollover to next month (optional)
 
 ## M6 Debts (F5)
@@ -139,10 +139,10 @@ Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample
 - [ ] Persist theme in DataStore
 
 ## Test status
-- 39 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, Database/Repository 15 (Robolectric).
+- 40 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, Database/Repository 16 (Robolectric).
 - No UI tests, no device/emulator run yet.
 
 ## Next up
-- M5 Budgets & Savings on Room, M6 Debts on Room, M7 Analytics on Room.
-- Static screens still on SampleData: Stats, Budgets, Debts.
+- M6 Debts on Room, M7 Analytics on Room. M5 leftovers: rollover (optional), vault delete, draggable thumb.
+- Static screens still on SampleData: Stats, Debts.
 - M4 is covered by repository tests (reorder, delete rules, two-level limit); the Categories screen/ViewModel itself has no UI test and has not been run on a device.
