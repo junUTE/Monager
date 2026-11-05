@@ -76,7 +76,6 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
     var parentId by rememberSaveable { mutableLongStateOf(-1L) }
     var childId by rememberSaveable { mutableLongStateOf(-1L) }
     var vaultId by rememberSaveable { mutableLongStateOf(-1L) }
-    var walletIdx by rememberSaveable { mutableIntStateOf(0) }
     var daysAgo by rememberSaveable { mutableIntStateOf(0) }
     var note by rememberSaveable { mutableStateOf("") }
 
@@ -88,7 +87,7 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
     val input = AmountInput(expression)
     val amount = input.result ?: 0L
     val selectedNode = tree.firstOrNull { it.parent.id == parentId }
-    val wallet = wallets.getOrNull(walletIdx % wallets.size.coerceAtLeast(1))
+    val wallet = wallets.firstOrNull() // single implicit wallet: the UI no longer exposes wallets
     val categoryId = if (childId >= 0 && selectedNode?.children?.any { it.id == childId } == true) childId else parentId.takeIf { it >= 0 && selectedNode != null }
     val canSave = amount > 0 && wallet != null && when (txType) {
         TxType.SAVING -> vaultId >= 0 && vaults.any { it.id == vaultId }
@@ -156,7 +155,6 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
 
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FormField(MIcon.Calendar, "Ngày", DayLabels[daysAgo], Modifier.weight(1f)) { daysAgo = (daysAgo + 1) % DayLabels.size }
-                FormField(MIcon.Wallet, "Ví", wallet?.name ?: "—", Modifier.weight(1f)) { if (wallets.size > 1) walletIdx = (walletIdx + 1) % wallets.size }
             }
             Row(
                 Modifier.fillMaxWidth().padding(top = 8.dp).height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.surface2).padding(horizontal = 10.dp),

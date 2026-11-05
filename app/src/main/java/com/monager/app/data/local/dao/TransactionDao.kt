@@ -53,6 +53,10 @@ interface TransactionDao {
     @Query("$ROW_SELECT ORDER BY t.timestamp DESC, t.id DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<TxRow>>
 
+    /** One time window (a month, or "future"); windowed so the screen never loads the whole history. */
+    @Query("$ROW_SELECT WHERE t.timestamp BETWEEN :from AND :to ORDER BY t.timestamp DESC, t.id DESC LIMIT 1000")
+    fun observeRowsBetween(from: Long, to: Long): Flow<List<TxRow>>
+
     /** Income minus expense minus savings across active wallets; transfers net to zero. */
     @Query(
         """

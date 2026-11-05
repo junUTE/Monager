@@ -61,7 +61,7 @@ private const val NEW = 0L
 private enum class Sheet { None, Edit, Pay, Detail }
 
 @Composable
-fun DebtsScreen(vm: DebtsViewModel) {
+fun DebtsScreen(vm: DebtsViewModel, onBack: (() -> Unit)? = null) {
     val c = mc
     val st by vm.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -77,7 +77,7 @@ fun DebtsScreen(vm: DebtsViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "h") {
-                ScreenHeader("Khoản nợ", "Quản lý nợ & cho vay", right = {
+                ScreenHeader("Khoản nợ", "Quản lý nợ & cho vay", onBack = onBack, right = {
                     AppIconButton(MIcon.Plus, "Thêm khoản nợ", { selected = NEW; sheet = Sheet.Edit }, c.primary)
                 })
             }

@@ -60,7 +60,10 @@ enum class MIcon(private val path: String) {
     Delete("M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v5M14 11v5"),
     Coffee("M4 7h13v7a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5ZM17 9h2a3 3 0 0 1 0 6h-2M7 3v2M11 3v2"),
     Phone(rect(5f, 2f, 14f, 20f) + "M9 18h6"),
-    Sparkles("M12 3l1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8ZM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6Z");
+    Sparkles("M12 3l1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8ZM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6Z"),
+    Eye("M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" + circle(12f, 12f, 3f)),
+    EyeOff("M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 5.2A9.6 9.6 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 4M6.1 6.1A17 17 0 0 0 2 12s4 7 10 7a9.7 9.7 0 0 0 4-.9"),
+    User(circle(12f, 8f, 4f) + "M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1");
 
     companion object {
         private val byName = entries.associateBy { it.name }

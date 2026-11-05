@@ -21,6 +21,7 @@ class TransactionRepository(private val db: MonagerDatabase) {
     private val dao = db.transactionDao()
     fun pagedRows() = dao.pagedRows()
     fun recent(limit: Int): Flow<List<TxRow>> = dao.observeRecent(limit)
+    fun rowsBetween(from: Long, to: Long): Flow<List<TxRow>> = dao.observeRowsBetween(from, to)
     fun totalBalance(): Flow<Long> = dao.observeTotalBalance()
     fun total(type: TxType, from: Long, to: Long) = dao.observeTotal(type, from, to)
     fun totalsByParent(type: TxType, from: Long, to: Long) = dao.observeTotalsByParent(type, from, to)

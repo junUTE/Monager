@@ -43,7 +43,7 @@ private val Themes = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)
 private val ThemeLabels = listOf("Hệ thống", "Sáng", "Tối")
 
 @Composable
-fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit, onOpenCategories: () -> Unit) {
+fun SettingsScreen(vm: SettingsViewModel, onOpenCategories: () -> Unit, onOpenDebts: () -> Unit, onOpenStats: () -> Unit) {
     val c = mc
     val ui by vm.ui.collectAsStateWithLifecycle()
     val theme by vm.themeMode.collectAsStateWithLifecycle()
@@ -58,10 +58,10 @@ fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit, onOpenCategories: 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         LazyColumn(
             Modifier.fillMaxSize().statusBarsPadding(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 110.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item(key = "h") { ScreenHeader("Cài đặt", "Giao diện và dữ liệu", onBack = onBack) }
+            item(key = "h") { ScreenHeader("Tài khoản", "Giao diện và dữ liệu") }
 
             ui.message?.let { msg ->
                 item(key = "msg") {
@@ -76,6 +76,9 @@ fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit, onOpenCategories: 
             item(key = "theme") {
                 SegmentedTabs(ThemeLabels, Themes.indexOf(theme).coerceAtLeast(0), { vm.setTheme(Themes[it]) })
             }
+            item(key = "t0") { SectionTitle("Quản lý") }
+            item(key = "stats") { Row3("Báo cáo", "Dòng tiền, danh mục chi tiêu, so sánh", MIcon.Chart, onClick = onOpenStats) }
+            item(key = "debts") { Row3("Khoản nợ", "Nợ và cho vay, trả dần", MIcon.Users, onClick = onOpenDebts) }
             item(key = "cat") { Row3("Quản lý danh mục", "Thêm, sửa, sắp xếp danh mục", MIcon.Receipt, onClick = onOpenCategories) }
 
             item(key = "t2") { Box(Modifier.padding(top = 6.dp)) { SectionTitle("Sao lưu & xuất dữ liệu") } }

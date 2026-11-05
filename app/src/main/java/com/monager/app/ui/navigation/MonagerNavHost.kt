@@ -47,53 +47,63 @@ import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.debts.DebtsScreen
 import com.monager.app.ui.home.HomeScreen
 import com.monager.app.ui.settings.SettingsScreen
+import com.monager.app.ui.transactions.TransactionsScreen
 import com.monager.app.ui.theme.mc
 import com.monager.app.ui.transaction.AddTransactionSheet
 
 enum class Tab(val icon: MIcon, val label: String) {
-    Home(MIcon.Home, "Trang chủ"), Stats(MIcon.Chart, "Báo cáo"), Budgets(MIcon.Wallet, "Hạn mức"), Debts(MIcon.Users, "Khoản nợ")
+    Home(MIcon.Home, "Trang chủ"), Transactions(MIcon.Receipt, "Giao dịch"), Budgets(MIcon.Wallet, "Hạn mức"), Account(MIcon.User, "Tài khoản")
 }
 
-/** State-driven navigation: 4 tabs + Categories sub-screen + Add sheet. No NavHost overhead for such a small graph. */
+/** State-driven navigation: 4 tabs + Stats/Debts/Categories sub-screens + Add sheet. No NavHost overhead for such a small graph. */
 @Composable
-fun MonagerNavHost(container: AppContainer, dark: Boolean, onToggleDark: () -> Unit) {
+fun MonagerNavHost(container: AppContainer, dark: Boolean) {
     val c = mc
     val factory = remember(container) { AppViewModelFactory(container) }
     val homeVm: HomeViewModel = viewModel(factory = factory)
     val homeState by homeVm.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(Tab.Home.ordinal) }
     var inCategories by rememberSaveable { mutableStateOf(false) }
-    var inSettings by rememberSaveable { mutableStateOf(false) }
+    var inStats by rememberSaveable { mutableStateOf(false) }
+    var inDebts by rememberSaveable { mutableStateOf(false) }
+    var hideBalance by rememberSaveable { mutableStateOf(false) }
     var addType by rememberSaveable { mutableIntStateOf(-1) } // -1 = sheet closed
 
-    val onHomeTop = tab == Tab.Home.ordinal && !inCategories && !inSettings
-    // System back: close the add sheet, then categories, then settings.
-    BackHandler(enabled = addType >= 0 || inCategories || inSettings) {
+    val inSub = inCategories || inStats || inDebts
+    // System back: close the add sheet, then the open sub-screen.
+    BackHandler(enabled = addType >= 0 || inSub) {
         when {
             addType >= 0 -> addType = -1
             inCategories -> inCategories = false
-            else -> inSettings = false
+            inStats -> inStats = false
+            else -> inDebts = false
         }
     }
-    // Light status-bar icons over the dark green home header, dark icons elsewhere in light theme.
+    // Dark status-bar icons on the light theme, light icons on the dark theme.
     val view = LocalView.current
     SideEffect {
         val window = (view.context as? Activity)?.window ?: return@SideEffect
-        val light = !(dark || onHomeTop)
-        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = light
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
         WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !dark
     }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when {
             inCategories -> CategoriesScreen(viewModel(factory = factory), onBack = { inCategories = false })
-            inSettings -> SettingsScreen(viewModel(factory = factory), onBack = { inSettings = false }, onOpenCategories = { inCategories = true })
-            tab == Tab.Home.ordinal -> HomeScreen(homeState, dark, onToggleDark, { inSettings = true }, { addType = it })
-            tab == Tab.Stats.ordinal -> StatsScreen(viewModel(factory = factory))
+            inStats -> StatsScreen(viewModel(factory = factory), onBack = { inStats = false })
+            inDebts -> DebtsScreen(viewModel(factory = factory), onBack = { inDebts = false })
+            tab == Tab.Home.ordinal -> HomeScreen(
+                homeState, hideBalance, { hideBalance = !hideBalance },
+                onSeeReports = { inStats = true }, onSeeTransactions = { tab = Tab.Transactions.ordinal },
+            )
+            tab == Tab.Transactions.ordinal -> TransactionsScreen(viewModel(factory = factory), hideBalance)
             tab == Tab.Budgets.ordinal -> BudgetsScreen(viewModel(factory = factory))
-            else -> DebtsScreen(viewModel(factory = factory))
+            else -> SettingsScreen(
+                viewModel(factory = factory),
+                onOpenCategories = { inCategories = true }, onOpenDebts = { inDebts = true }, onOpenStats = { inStats = true },
+            )
         }
-        if (!inCategories && !inSettings) {
+        if (!inSub) {
             BottomNav(
                 selected = tab,
                 onSelect = { tab = it },
@@ -114,10 +124,10 @@ private fun BottomNav(selected: Int, onSelect: (Int) -> Unit, onAdd: () -> Unit,
     Box(modifier.fillMaxWidth().background(c.surface.copy(alpha = .94f)).navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(64.dp), verticalAlignment = Alignment.CenterVertically) {
             NavItem(Tab.Home, selected, onSelect, Modifier.weight(1f))
-            NavItem(Tab.Stats, selected, onSelect, Modifier.weight(1f))
+            NavItem(Tab.Transactions, selected, onSelect, Modifier.weight(1f))
             Box(Modifier.weight(1f))
             NavItem(Tab.Budgets, selected, onSelect, Modifier.weight(1f))
-            NavItem(Tab.Debts, selected, onSelect, Modifier.weight(1f))
+            NavItem(Tab.Account, selected, onSelect, Modifier.weight(1f))
         }
         RaisedBox(
             Modifier.align(Alignment.TopCenter).offset(y = (-22).dp).size(52.dp),

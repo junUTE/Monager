@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.monager.app.core.MillisRange
 import com.monager.app.core.TimeRanges
 import com.monager.app.data.local.dao.TxRow
 import com.monager.app.data.local.entity.CategoryEntity
@@ -32,21 +33,30 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
+
+@Immutable
+data class TopSpend(val name: String, val icon: MIcon, val tone: Tone, val amount: Long)
+
+/** Expense of one period (this week / this month), the previous period for the % change, and its top categories. */
+@Immutable
+data class PeriodSpend(val current: Long = 0, val previous: Long = 0, val top: List<TopSpend> = emptyList())
 
 @Immutable
 data class HomeState(
     val loaded: Boolean = false,
     val totalBalance: Long = 0,
     val monthIncome: Long = 0,
-    val monthExpense: Long = 0,
-    val budgetLimit: Long? = null,
-    val budgetSpent: Long = 0,
+    val month: PeriodSpend = PeriodSpend(),
+    val week: PeriodSpend = PeriodSpend(),
+    /** Expense per day of the current month, normalised to 0..1 (precomputed so the chart only draws). */
+    val dailyExpense: List<Float> = emptyList(),
     val recent: List<TxItem> = emptyList(),
 )
 
-private fun TxRow.toItem(today: LocalDate): TxItem {
+internal fun TxRow.toItem(today: LocalDate): TxItem {
     val income = type == TxType.INCOME
     val title = categoryName ?: vaultName?.let { "Tiết kiệm" } ?: if (type == TxType.TRANSFER) "Chuyển khoản" else "Khác"
     val sub = note.ifBlank { parentName ?: vaultName.orEmpty() }
@@ -61,24 +71,90 @@ private fun TxRow.toItem(today: LocalDate): TxItem {
     )
 }
 
-class HomeViewModel(c: AppContainer) : ViewModel() {
-    private val month = YearMonth.now()
-    private val range = TimeRanges.month(month)
+class HomeViewModel(private val c: AppContainer) : ViewModel() {
+    private val today = LocalDate.now()
+    private val month = YearMonth.from(today)
+    private val monthRange = TimeRanges.month(month)
+    private val weekStart = today.with(DayOfWeek.MONDAY)
+
+    private fun days(from: LocalDate, toExclusive: LocalDate) =
+        MillisRange(TimeRanges.startOfDay(from), TimeRanges.startOfDay(toExclusive) - 1)
+
+    private fun top(r: MillisRange): Flow<List<TopSpend>> =
+        combine(c.transactions.totalsByParent(TxType.EXPENSE, r.from, r.to), c.categories.tree(TxType.EXPENSE)) { totals, tree ->
+            val byId = tree.associateBy { it.parent.id }
+            totals.mapNotNull { t ->
+                byId[t.groupId]?.parent?.let { TopSpend(it.name, MIcon.fromKey(it.iconKey), Tone.fromKey(it.toneKey), t.total) }
+            }.take(4)
+        }
+
+    private fun period(cur: MillisRange, prev: MillisRange): Flow<PeriodSpend> =
+        combine(c.transactions.total(TxType.EXPENSE, cur.from, cur.to), c.transactions.total(TxType.EXPENSE, prev.from, prev.to), top(cur)) { a, b, t ->
+            PeriodSpend(a, b, t)
+        }
+
+    private val daily: Flow<List<Float>> = c.transactions.daily(monthRange.from, monthRange.to).map { rows ->
+        val sums = LongArray(month.lengthOfMonth())
+        rows.forEach { if (it.type == TxType.EXPENSE) sums[it.day.substring(8).toInt() - 1] += it.total }
+        val max = sums.maxOrNull()?.takeIf { it > 0 }
+        if (max == null) emptyList() else sums.map { it.toFloat() / max }
+    }
 
     val state: StateFlow<HomeState> = combine(
         c.transactions.totalBalance(),
-        c.transactions.total(TxType.INCOME, range.from, range.to),
-        c.transactions.total(TxType.EXPENSE, range.from, range.to),
-        c.budgets.forMonth(TimeRanges.monthKey(month), range.from, range.to),
-        c.transactions.recent(20),
-    ) { balance, income, expense, budgets, recent ->
-        val overall = budgets.firstOrNull { it.categoryId == null }
-        val today = LocalDate.now()
-        HomeState(true, balance, income, expense, overall?.limitAmount, overall?.spent ?: 0, recent.map { it.toItem(today) })
+        c.transactions.total(TxType.INCOME, monthRange.from, monthRange.to),
+        combine(
+            period(monthRange, TimeRanges.month(month.minusMonths(1))),
+            period(days(weekStart, weekStart.plusDays(7)), days(weekStart.minusDays(7), weekStart)),
+        ) { m, w -> m to w },
+        daily,
+        c.transactions.recent(5),
+    ) { balance, income, periods, dailyExpense, recent ->
+        HomeState(true, balance, income, periods.first, periods.second, dailyExpense, recent.map { it.toItem(today) })
     }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default) // mapping off the main thread
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
+}
+
+/** "Giao dịch" tab: one time window at a time (last month / this month / future), grouped by day. */
+@Immutable
+data class TxGroup(val label: String, val items: List<TxItem>)
+
+@Immutable
+data class TransactionsState(val loaded: Boolean = false, val balance: Long = 0, val groups: List<TxGroup> = emptyList())
+
+class TransactionsViewModel(private val c: AppContainer) : ViewModel() {
+    private val tab = MutableStateFlow(1)
+    val selected: StateFlow<Int> = tab
+
+    fun select(i: Int) { tab.value = i }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val state: StateFlow<TransactionsState> = tab.flatMapLatest { t ->
+        val thisMonth = YearMonth.now()
+        val r = when (t) {
+            0 -> TimeRanges.month(thisMonth.minusMonths(1))
+            1 -> TimeRanges.month(thisMonth)
+            else -> MillisRange(TimeRanges.month(thisMonth).to + 1, Long.MAX_VALUE)
+        }
+        combine(c.transactions.totalBalance(), c.transactions.rowsBetween(r.from, r.to)) { balance, rows ->
+            val today = LocalDate.now()
+            val groups = ArrayList<TxGroup>()
+            var label = ""
+            var bucket = ArrayList<TxItem>()
+            rows.forEach { row ->
+                val item = row.toItem(today)
+                if (item.date != label && bucket.isNotEmpty()) { groups += TxGroup(label, bucket); bucket = ArrayList() }
+                label = item.date
+                bucket += item
+            }
+            if (bucket.isNotEmpty()) groups += TxGroup(label, bucket)
+            TransactionsState(true, balance, groups)
+        }
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TransactionsState())
 }
 
 class AddTransactionViewModel(private val c: AppContainer) : ViewModel() {
@@ -196,6 +272,7 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when (modelClass) {
         HomeViewModel::class.java -> HomeViewModel(container)
+        TransactionsViewModel::class.java -> TransactionsViewModel(container)
         AddTransactionViewModel::class.java -> AddTransactionViewModel(container)
         CategoriesViewModel::class.java -> CategoriesViewModel(container)
         BudgetsViewModel::class.java -> BudgetsViewModel(container)

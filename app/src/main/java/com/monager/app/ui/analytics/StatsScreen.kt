@@ -58,7 +58,7 @@ private val SlicePaletteLight = listOf(Color(0xFF143D30), Color(0xFFDC604E), Col
 private val SlicePaletteDark = listOf(Color(0xFF4FB98F), Color(0xFFF08A7A), Color(0xFF7FA6C9), Color(0xFFE6B960), Color(0xFF8A9690))
 
 @Composable
-fun StatsScreen(vm: AnalyticsViewModel) {
+fun StatsScreen(vm: AnalyticsViewModel, onBack: (() -> Unit)? = null) {
     val c = mc
     val st by vm.state.collectAsStateWithLifecycle()
     var customSheet by rememberSaveable { mutableStateOf(false) }
@@ -71,7 +71,7 @@ fun StatsScreen(vm: AnalyticsViewModel) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item(key = "h") {
-                ScreenHeader("Báo cáo", "Theo dõi dòng tiền của bạn", right = { AppIconButton(MIcon.Calendar, "Chọn khoảng ngày", { customSheet = true }, c.primary) })
+                ScreenHeader("Báo cáo", "Theo dõi dòng tiền của bạn", onBack = onBack, right = { AppIconButton(MIcon.Calendar, "Chọn khoảng ngày", { customSheet = true }, c.primary) })
             }
             item(key = "seg") {
                 SegmentedTabs(KindLabels, Kinds.indexOf(st.kind).coerceAtLeast(0), { i ->
