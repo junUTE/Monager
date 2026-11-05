@@ -7,3 +7,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Monager"
 include(":app")
+include(":baselineprofile")

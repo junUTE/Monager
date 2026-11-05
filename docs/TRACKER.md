@@ -15,8 +15,8 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 | M5 Budgets & Savings | in progress | 4 / 7 |
 | M6 Debts | done | 7 / 7 |
 | M7 Analytics | in progress | 6 / 7 |
-| M8 Settings & Data | in progress | 5 / 6 |
-| M9 Performance | not started | 0 / 6 |
+| M8 Settings & Data | done (locale setting deferred) | 5 / 6 |
+| M9 Performance | in progress | 3 / 6 |
 | M10 Release | not started | 0 / 5 |
 
 ## M0 Foundation
@@ -92,7 +92,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [~] Zero-allocation draw: code-reviewed (Stroke/CornerRadius remembered, sweeps and fractions precomputed) but NOT profiled — verify in M9 with the Android Studio profiler
 
 ## M8 Settings & Data (F7)
-- [x] Theme: Light / Dark / System (saved in DataStore; Home sun/moon button also saves)
+- [x] Theme: Light / Dark / System (saved in DataStore; chosen in the Account tab)
 - [x] Export JSON (full backup of all 7 tables, via the system file picker)
 - [x] Export CSV (UTF-8 with BOM for Excel; formula-looking text is neutralised) and Excel .xlsx (hand-written writer, amounts stored as numbers)
 - [x] Import: JSON restore (validated, confirm dialog, atomic replace) + CSV/Excel append (auto-detect, header-name or positional columns, creates missing categories/wallets/vaults, skips duplicates, reports bad rows)
@@ -100,12 +100,12 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [x] About + data size info (offline note, transaction count, DB size)
 
 ## M9 Performance hardening
-- [ ] Baseline Profile + Startup Profile
-- [ ] Macrobenchmark: cold start, Home scroll, Analytics open
-- [ ] JankStats in debug builds
-- [ ] Recomposition audit (Layout Inspector)
-- [ ] R8 full mode + shrink verified, APK size recorded
-- [ ] Test on real Moto G35 (record results below)
+- [x] Baseline Profile + Startup Profile: generated on an API 35 emulator (`./gradlew :app:generateBaselineProfile`), committed in `app/src/release/generated/baselineProfiles/` (16.6k rules, ~1.3k from the app); `baseline.prof` is packaged in the release APK
+- [~] Macrobenchmark: scenarios written in `:baselineprofile` (cold start, Home scroll, Transactions scroll, open Reports; each with/without profile) but NOT measured. The emulator's Perfetto trace fails with `FTRACE_STATUS_PARTIAL_PAGE_READ`, and emulator numbers would not represent a Moto G35 anyway. Run on a real device: `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest`
+- [x] JankStats: `PerfTools` logs janky frames (tag `MonagerJank`) in every build type except release. Demo data for benchmarks: launch with `--ez perf_seed true` (empty DB only, ~1500 tx). R8 strips PerfTools + JankStats from release (`BuildConfig.PERF_TOOLS` = false)
+- [ ] Recomposition audit (Layout Inspector) — needs Android Studio; not done
+- [x] R8 full mode + shrink verified: release APK 1.39 MB (debug 14.4 MB), smoke-tested on the emulator (Home, Transactions, Account, Add sheet: no crash)
+- [ ] Test on real Moto G35 (record results below) — no device available
 
 ## M10 Release
 - [ ] Launcher icon + splash
@@ -118,7 +118,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 
 | Date | Build | Device | Cold start | Home scroll jank % | APK size | Notes |
 |------|-------|--------|-----------|--------------------|----------|-------|
-| – | – | – | – | – | – | – |
+| 2026-11-05 | release (R8, baseline profile) | emulator API 35 (NOT representative) | 4.1-5.0 s first launch incl. DB creation | not measured | 1.39 MB | debug JankStats on emulator: ~6% janky frames, software GPU; ignore, re-measure on Moto G35 |
 
 ## Decisions / blockers
 
@@ -143,6 +143,7 @@ Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample
 - No UI tests, no device/emulator run yet.
 
 ## Next up
+- UI redesign 2026-11-05 (commit 49ee042): Home = balance + month report + week/month compare + top spending + recent; new Transactions tab (last month / this month / future); tabs are Home, Transactions, Budgets, Account; Reports and Debts are sub-screens (Home "Xem báo cáo", Account); the wallet field was removed from the Add sheet (the first wallet is used implicitly). Home search/bell icons from the reference were intentionally not added (no feature behind them).
 - M9 Performance hardening, then M10 Release. Not yet device-tested: file picker flows (export/import) and the Excel files opening in real Excel/Sheets. M5 leftovers: rollover (optional), vault delete, draggable thumb.
 - All five screens now read Room; the sample-data file is deleted.
 - Debug APK grew 10.8 -> 14.4 MB across M4-M7 (debug is unminified); measure the release build in M9.

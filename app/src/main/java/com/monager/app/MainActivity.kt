@@ -16,6 +16,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as MonagerApp).container
+        PerfTools.install(this, container)
         setContent {
             val mode by container.settings.themeMode.collectAsStateWithLifecycle(ThemeMode.SYSTEM)
             val systemDark = isSystemInDarkTheme()

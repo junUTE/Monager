@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -33,9 +34,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     testOptions { unitTests.isIncludeAndroidResources = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+}
+
+// PERF_TOOLS (JankStats logging + demo-data seeding for benchmarks) is on for every build type except the real release.
+androidComponents {
+    onVariants { v ->
+        v.buildConfigFields?.put("PERF_TOOLS", com.android.build.api.variant.BuildConfigField("boolean", (v.buildType != "release").toString(), null))
+    }
 }
 
 ksp {
@@ -61,8 +69,10 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
     implementation(libs.kotlinx.coroutines.android)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation(libs.androidx.metrics.performance) // used only behind BuildConfig.PERF_TOOLS; R8 strips it from release
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
