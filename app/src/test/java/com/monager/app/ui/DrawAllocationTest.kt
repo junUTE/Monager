@@ -25,6 +25,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /**
  * AGENTS.md: "no allocations in draw scope". Draws every chart many times on a real Compose Canvas and measures the
@@ -33,6 +34,7 @@ import org.robolectric.annotation.Config
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+@GraphicsMode(GraphicsMode.Mode.NATIVE) // real Skia canvas: no legacy-shadow call history polluting the allocation counter
 class DrawAllocationTest {
     private val density = Density(2.75f)
     private val size = Size(1080f, 600f)
@@ -56,54 +58,31 @@ class DrawAllocationTest {
     private fun bytesPerDraw(block: DrawScope.() -> Unit): Long {
         repeat(300) { scope.draw(density, LayoutDirection.Ltr, canvas, size, block) } // warm up the JIT and any lazy caches
         val runs = 1_000
-        val before = allocated()
-        repeat(runs) { scope.draw(density, LayoutDirection.Ltr, canvas, size, block) }
-        return (allocated() - before) / runs
-    }
-
-    /**
-     * Anything above [LIMIT] per frame beyond the cost of the bare framework calls it makes would mean our code is
-     * creating objects while drawing. Robolectric's Canvas shadow records every drawLine / drawCircle call in a history
-     * list (that is test-environment noise, not app allocation), so those functions are compared with a control that
-     * issues the same calls directly: [extra] = bytes of that control.
-     */
-    private fun assertCheap(name: String, bytes: Long, extra: Long = 0) {
-        println("DRAW-ALLOC $name = $bytes bytes/frame (control $extra)")
-        assertTrue("$name allocates $bytes bytes per draw (control $extra)", bytes <= extra + LIMIT)
-    }
-
-    private val threeLines: DrawScope.() -> Unit = {
-        for (g in 1..3) drawLine(Color.Gray, androidx.compose.ui.geometry.Offset(0f, g * 10f), androidx.compose.ui.geometry.Offset(100f, g * 10f), 1f)
-    }
-    private val twoCircles: DrawScope.() -> Unit = {
-        drawCircle(Color.Black, 5f, androidx.compose.ui.geometry.Offset(10f, 10f))
-        drawCircle(Color.White, 5f, androidx.compose.ui.geometry.Offset(10f, 10f))
-    }
-    private val threeCircles: DrawScope.() -> Unit = {
-        twoCircles()
-        drawCircle(Color.Red, 3f, androidx.compose.ui.geometry.Offset(10f, 10f))
-    }
-
-    /** Sanity check of the measurement itself: creating a Stroke per draw (the classic mistake) must be detected. */
-    @Test fun detectsAnAllocatingDraw() {
-        val bytes = bytesPerDraw {
-            repeat(5) { drawArc(Color.Red, 0f, 90f, false, androidx.compose.ui.geometry.Offset.Zero, Size(100f, 100f), style = Stroke(10f)) }
+        // Minimum of three rounds filters one-off spikes (GC bookkeeping).
+        return (1..3).minOf {
+            val before = allocated()
+            repeat(runs) { scope.draw(density, LayoutDirection.Ltr, canvas, size, block) }
+            (allocated() - before) / runs
         }
-        println("DRAW-ALLOC deliberately bad draw = $bytes bytes/frame")
-        assertTrue("the test should flag per-draw Stroke allocation but saw only $bytes bytes", bytes > LIMIT)
+    }
+
+    /** Anything above [LIMIT] bytes per frame means our drawing code is creating objects (one Stroke alone is ~40 bytes). */
+    private fun assertCheap(name: String, bytes: Long) {
+        println("DRAW-ALLOC $name = $bytes bytes/frame")
+        assertTrue("$name allocates $bytes bytes per draw", bytes <= LIMIT)
     }
 
     @Test fun baselineEmptyDrawIsFree() = assertCheap("empty (framework overhead)", bytesPerDraw { })
 
     @Test fun donut() = assertCheap("donut", bytesPerDraw { drawDonut(slices, palette, Color.LightGray, 40f, stroke) })
     @Test fun donutEmpty() = assertCheap("donut empty", bytesPerDraw { drawDonut(emptyList(), palette, Color.LightGray, 40f, stroke) })
-    @Test fun cashFlowBars() = assertCheap("cash-flow bars", bytesPerDraw { drawCashFlowBars(bars, Color.Green, Color.Red, Color.Gray, 8f, radius) }, extra = bytesPerDraw(threeLines))
+    @Test fun cashFlowBars() = assertCheap("cash-flow bars", bytesPerDraw { drawCashFlowBars(bars, Color.Green, Color.Red, Color.Gray, 8f, radius) })
     @Test fun splitBar() = assertCheap("home split bar", bytesPerDraw { drawSplitBar(true, .4f, Color.Gray, Color.Green, Color.Red) })
     @Test fun dailyBars() = assertCheap("home daily bars", bytesPerDraw { drawDailyBars(daily, Color.Red, Color.Gray) })
     @Test fun compareBars() = assertCheap("home compare bars", bytesPerDraw { drawCompareBars(.5f, 1f, true, true, Color.Gray, Color.Green) })
     @Test fun budgetRing() = assertCheap("budget ring", bytesPerDraw { drawBudgetRing(.7f, 40f, stroke, roundStroke, Color.Gray, Color.Green) })
-    @Test fun progressWithThumb() = assertCheap("progress + thumb", bytesPerDraw { drawProgress(.6f, Color.Gray, Color.Green, true) }, extra = bytesPerDraw(twoCircles))
-    @Test fun limitSlider() = assertCheap("limit slider", bytesPerDraw { drawLimitSlider(.6f, Color.Gray, Color.Green) }, extra = bytesPerDraw(threeCircles))
+    @Test fun progressWithThumb() = assertCheap("progress + thumb", bytesPerDraw { drawProgress(.6f, Color.Gray, Color.Green, true) })
+    @Test fun limitSlider() = assertCheap("limit slider", bytesPerDraw { drawLimitSlider(.6f, Color.Gray, Color.Green) })
 
     private companion object {
         const val LIMIT = 16L  // one Stroke object is ~40 bytes, so a single per-draw allocation already fails

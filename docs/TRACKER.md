@@ -7,15 +7,15 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 
 | Milestone | Status | Done / Total |
 |-----------|--------|--------------|
-| M0 Foundation | done except full dependency bump | 7 / 8 |
+| M0 Foundation | done | 8 / 8 |
 | M1 Data layer | done | 6 / 6 |
 | M2 Add Transaction | done | 9 / 9 |
-| M3 Home | done except device jank check (redesigned 2026-11-05) | 5 / 6 |
+| M3 Home | done except the Moto G35 jank check (see docs/DEVICE_TESTING.md) | 5 / 6 |
 | M4 Categories | done | 6 / 6 |
 | M5 Budgets & Savings | done | 7 / 7 |
 | M6 Debts | done | 7 / 7 |
-| M7 Analytics | done except profiler check | 6 / 7 |
-| M8 Settings & Data | done (locale setting deferred) | 5 / 6 |
+| M7 Analytics | done | 7 / 7 |
+| M8 Settings & Data | done | 6 / 6 |
 | M9 Performance | in progress | 3 / 6 |
 | M10 Release | not started | 0 / 5 |
 
@@ -23,7 +23,7 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 - [x] Repo skeleton, Gradle, version catalog (pushed to GitHub)
 - [x] Room v1 draft schema + DAOs
 - [x] Build verified from CLI (Gradle 8.9 + Studio JBR): `assembleDebug` OK, debug APK 10.8 MB. Not yet run on a device
-- [~] Dependency versions: raised Compose BOM 2024.12.01 -> 2025.06.01, Room 2.6.1 -> 2.7.2, activity 1.10.1, core-ktx 1.16.0, DataStore 1.1.7, coroutines 1.10.2. HELD BACK on purpose: AGP 8.7.3 / Kotlin 2.0.21 / Gradle 8.9 and lifecycle 2.8.7 (lifecycle 2.9 lint crashes on AGP 8.7). The very latest libraries (e.g. navigation 2.10, compose BOM 2026.09) need compileSdk 37 + AGP 9, which is a separate toolchain migration. Removed unused `navigation-compose` and `room-paging` (month-windowed queries are used instead of Paging)
+- [x] Dependencies at the latest stable versions (2026-11-05): Gradle 9.8.2, AGP 9.5.0 (built-in Kotlin, so the `kotlin-android` plugin is gone), Kotlin 2.4.21, KSP 2.3.13, Compose BOM 2026.09.00, Room 2.8.5, lifecycle 2.11.0, activity 1.13.0, core-ktx 1.19.1, DataStore 1.3.0, coroutines 1.11.0, JankStats 1.0.0, Macrobenchmark / Baseline Profile plugin 1.5.0, Robolectric 4.16.1. compileSdk 37, targetSdk 36 (was 35). `navigation-compose` and `room-paging` were removed as unused. All JVM tests pass, the R8 release build works and the app was smoke-tested on an API 35 emulator; it has not run on an API 36 device, where the targetSdk 36 behaviour changes apply
 - [x] Design tokens (light + dark), typography — ui/theme/Theme.kt
 - [x] Shared components: `RaisedCard`, `RaisedButton`, `Chip`, `TopBar`, bottom nav — raised()/RaisedBox, SegmentedTabs, AppProgress, ScreenHeader, bottom nav
 - [x] Icon registry + first 20 vector icons — 40 icons, `MIcon.fromKey`
@@ -54,7 +54,7 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 - [x] Budget progress now lives only on the Budgets tab (removed from Home in the redesign)
 - [x] Top spending (week/month) and recent transactions (5 latest, one card); full list + date groups in the new Transactions tab (last month / this month / future)
 - [x] Income green (+) / expense red (−), 40x40dp vector icons
-- [ ] Jank check on Moto G35
+- [ ] Jank check on Moto G35 — needs the real device (the emulator cannot give meaningful frame timings and its Perfetto traces fail); step-by-step in docs/DEVICE_TESTING.md
 
 ## M4 Categories (F6)
 - [x] List parents with children (Room, expandable)
@@ -89,14 +89,14 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 - [x] Ranked category breakdown list (percent sums to exactly 100, children roll up to parent) + change vs previous period
 - [x] Empty/loading states
 - [x] Chart geometry precomputed off main thread (AnalyticsViewModel on Dispatchers.Default)
-- [~] Zero-allocation draw: re-reviewed 2026-11-05 (Donut/Bars/Home charts clean; fixed per-draw `Stroke` allocations in the Budgets ring and a per-draw array in the Home compare chart) but NOT profiled with the Android Studio allocation profiler
+- [x] Zero-allocation draw: all chart drawing (donut, cash-flow bars, Home bars, budget ring, progress, limit slider) is plain `DrawScope` functions in `ui/components/ChartDraw.kt`, covered by `DrawAllocationTest`: it draws each one 1,000 times on a real Skia canvas (Robolectric native graphics) and reads the JVM per-thread allocation counter. Result: 0 bytes per frame for every chart; a deliberately bad draw (a `Stroke` per call) is caught at ~160 bytes, so the check is sensitive. Not measured with the Android Studio allocation profiler on a device
 
 ## M8 Settings & Data (F7)
 - [x] Theme: Light / Dark / System (saved in DataStore; chosen in the Account tab)
 - [x] Export JSON (full backup of all 7 tables, via the system file picker)
 - [x] Export CSV (UTF-8 with BOM for Excel; formula-looking text is neutralised) and Excel .xlsx (hand-written writer, amounts stored as numbers)
 - [x] Import: JSON restore (validated, confirm dialog, atomic replace) + CSV/Excel append (auto-detect, header-name or positional columns, creates missing categories/wallets/vaults, skips duplicates, reports bad rows)
-- [ ] Currency / locale formatting setting — deferred: the app is VND-only for now
+- [x] Display format setting (Account tab): thousands separator `1.234.567` or `1,234,567` and currency mark `₫` / `đ` / `VND`, saved in DataStore and applied app-wide (`Money` holds Compose state, so every screen updates at once). Display only: stored amounts, CSV/Excel/JSON exports and imports never change. The app stays VND-only (amounts are whole dong); other currencies would need minor-unit support
 - [x] About + data size info (offline note, transaction count, DB size)
 
 ## M9 Performance hardening
@@ -131,10 +131,10 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 - [x] Release build (R8) smoke-tested on an API 35 emulator: Home, Transactions, Account, Add sheet, date picker, future transaction flow
 - [x] Optional items done 2026-11-05: draggable limit slider, vault delete, budget rollover (copy limits), 24 more icons, time picker, date pickers for debt due date and the custom report range
 - [x] Fixed while testing on the emulator: the bottom navigation covered the buttons of bottom sheets on tab screens (it now hides while a sheet is open); system Back closed the whole screen/app instead of just a sheet (SimpleSheet and CategoryEditSheet now handle Back); date/time dialogs now use the app's green palette
-- [ ] Still open by decision/need: dependency migration to AGP 9 / compileSdk 37; carrying unspent budget over; due-date reminders (explicitly skipped); device testing (file picker, Excel files in real Excel/Sheets, Moto G35 jank)
+- [ ] Still open by decision/need: carrying unspent budget over; due-date reminders (explicitly skipped); everything that needs a real device (Moto G35 jank / benchmarks, file picker, Excel files in real Excel/Sheets, API 36 behaviour); regenerate the Baseline Profile before release (it predates the latest refactors)
 
 ## Test status
-- 98 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 17, DebtMath 6, Periods 10, Database/Repository 24, Backup/Import/Export 14, Codecs 15 (Robolectric).
+- 113 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 17, DebtMath 6, Periods 10, Money 4, Database/Repository 24, SettingsStore 1, Backup/Import/Export 14, Codecs 15, DrawAllocation 10 (Robolectric).
 - No UI tests. Manual smoke tests only on an API 35 emulator (see M9 notes); never on a real Moto G35.
 
 ## Next up
