@@ -230,6 +230,8 @@ data class BudgetsState(
     val vaults: List<VaultRow> = emptyList(),
     /** Expense parents that do not have a budget yet this month (choices for "add budget"). */
     val available: List<CategoryEntity> = emptyList(),
+    /** Number of budgets set last month; > 0 with none this month offers "reuse last month". */
+    val previousCount: Int = 0,
 )
 
 class BudgetsViewModel(private val c: AppContainer) : ViewModel() {
@@ -241,7 +243,8 @@ class BudgetsViewModel(private val c: AppContainer) : ViewModel() {
             c.budgets.forMonth(TimeRanges.monthKey(month), range.from, range.to),
             c.categories.tree(TxType.EXPENSE),
             c.vaults.vaults(),
-        ) { budgets, tree, vaults ->
+            c.budgets.count(TimeRanges.monthKey(month.minusMonths(1))),
+        ) { budgets, tree, vaults, previousCount ->
             val byId = tree.associateBy { it.parent.id }
             val rows = budgets.filter { it.categoryId != null }.mapNotNull { b ->
                 val cat = byId[b.categoryId]?.parent ?: return@mapNotNull null
@@ -254,6 +257,7 @@ class BudgetsViewModel(private val c: AppContainer) : ViewModel() {
                 overall, rows,
                 vaults.map { VaultRow(it.vault.id, it.vault.name, it.vault.iconKey, it.vault.target, it.saved) },
                 tree.map { it.parent }.filter { it.id !in used },
+                previousCount,
             )
         }
     }
@@ -262,6 +266,15 @@ class BudgetsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setBudget(categoryId: Long?, limit: Long, onDone: () -> Unit) {
         viewModelScope.launch { c.budgets.set(TimeRanges.monthKey(YearMonth.from(c.today.value)), categoryId, limit); onDone() }
+    }
+
+    fun copyLastMonth(onDone: () -> Unit) {
+        val month = YearMonth.from(c.today.value)
+        viewModelScope.launch { c.budgets.copyMonth(TimeRanges.monthKey(month.minusMonths(1)), TimeRanges.monthKey(month)); onDone() }
+    }
+
+    fun deleteVault(id: Long, onDone: () -> Unit) {
+        viewModelScope.launch { c.vaults.delete(id); onDone() }
     }
 
     fun removeBudget(id: Long, onDone: () -> Unit) {

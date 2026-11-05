@@ -82,11 +82,20 @@ class WalletRepository(db: MonagerDatabase) {
     suspend fun save(w: WalletEntity) = dao.upsert(w)
 }
 
-class VaultRepository(db: MonagerDatabase) {
+class VaultRepository(private val db: MonagerDatabase) {
     private val dao = db.vaultDao()
     fun vaults(): Flow<List<VaultWithSaved>> = dao.observeWithSaved()
 
-    /** Create (id == 0) or update. Vaults are not deletable yet: their SAVING transactions already left the wallet balance. */
+    /**
+     * Deletes the vault together with its SAVING deposits, so the money flows back into the wallet balance
+     * (deposits had been subtracted from it). One transaction: either both go or neither.
+     */
+    suspend fun delete(id: Long) = db.withTransaction {
+        dao.deleteSavings(id)
+        dao.delete(id)
+    }
+
+    /** Create (id == 0) or update. */
     suspend fun save(v: VaultEntity): Long {
         require(v.name.isNotBlank() && v.target > 0)
         return dao.upsert(v.copy(name = v.name.trim()))
@@ -105,6 +114,19 @@ class BudgetRepository(private val db: MonagerDatabase) {
     }
 
     suspend fun remove(id: Long) = dao.delete(id)
+
+    fun count(month: Int): Flow<Int> = dao.observeCount(month)
+
+    /**
+     * "Rollover": copies the limits of [from] into [to] for every budget that does not exist yet there.
+     * Existing budgets of [to] are never overwritten. Returns how many were created.
+     */
+    suspend fun copyMonth(from: Int, to: Int): Int = db.withTransaction {
+        val have = dao.listMonth(to).map { it.categoryId }.toSet()
+        val fresh = dao.listMonth(from).filter { it.categoryId !in have }.map { BudgetEntity(categoryId = it.categoryId, month = to, limitAmount = it.limitAmount) }
+        dao.insertAll(fresh)
+        fresh.size
+    }
 }
 
 class DebtRepository(private val db: MonagerDatabase) {

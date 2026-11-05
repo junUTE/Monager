@@ -1,5 +1,6 @@
 package com.monager.app.ui.components
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,6 +21,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,12 +37,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.monager.app.ui.theme.mc
 
+/** Number of [SimpleSheet]s currently open; the host hides the bottom navigation while it is > 0 so it cannot cover a sheet's buttons. */
+val LocalOpenSheets = compositionLocalOf<MutableIntState?> { null }
+
 /**
  * Lightweight bottom sheet: scrim + rounded Column. Avoids ModalBottomSheet's window and animation overhead.
  */
 @Composable
 fun SimpleSheet(title: String, subtitle: String? = null, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val c = mc
+    val open = LocalOpenSheets.current
+    BackHandler(onBack = onClose) // system Back closes the sheet instead of leaving the screen/app
+    DisposableEffect(open) {
+        open?.let { it.intValue++ }
+        onDispose { open?.let { it.intValue-- } }
+    }
     Box(
         Modifier.fillMaxSize().background(Color(0x85071510))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),

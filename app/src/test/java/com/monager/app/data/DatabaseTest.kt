@@ -15,6 +15,7 @@ import com.monager.app.data.repository.BudgetRepository
 import com.monager.app.data.repository.CategoryRepository
 import com.monager.app.data.repository.DebtRepository
 import com.monager.app.data.repository.TransactionRepository
+import com.monager.app.data.repository.VaultRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -78,6 +79,27 @@ class DatabaseTest {
         tx.add(expense(1, 1, ts = 1_000)); tx.add(expense(2, 1, ts = 5_000)); tx.add(expense(3, 1, ts = 9_000))
         assertEquals(listOf(2L, 1L), tx.rowsBetween(500, 6_000).first().map { it.amount })
         assertEquals(listOf(3L), tx.rowsBetween(6_000, Long.MAX_VALUE).first().map { it.amount })
+    }
+
+    @Test fun deletingAVaultRemovesItsDepositsAndReturnsTheMoney() = runBlocking {
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 11, timestamp = 2_000))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.SAVING, amount = 200, vaultId = 1, timestamp = 3_000))
+        assertEquals(800L, db.transactionDao().observeTotalBalance().first())
+        VaultRepository(db).delete(1)
+        assertEquals(1_000L, db.transactionDao().observeTotalBalance().first())
+        assertTrue(db.vaultDao().observeWithSaved().first().isEmpty())
+        // The income transaction is untouched.
+        assertEquals(1, tx.rowsBetween(0, Long.MAX_VALUE).first().size)
+    }
+
+    @Test fun copyMonthCopiesMissingLimitsAndNeverOverwrites() = runBlocking {
+        budgets.set(202610, null, 5_000)
+        budgets.set(202610, 1, 2_000)
+        budgets.set(202611, 1, 3_000) // already set this month: must stay 3_000
+        assertEquals(1, budgets.copyMonth(202610, 202611)) // only the overall budget is new
+        val nov = db.budgetDao().listMonth(202611).associate { it.categoryId to it.limitAmount }
+        assertEquals(mapOf<Long?, Long>(null to 5_000L, 1L to 3_000L), nov)
+        assertEquals(0, budgets.copyMonth(202610, 202611)) // second run is a no-op
     }
 
     @Test fun periodTotalsRespectRange() = runBlocking {

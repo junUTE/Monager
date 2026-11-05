@@ -63,7 +63,34 @@ enum class MIcon(private val path: String) {
     Sparkles("M12 3l1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8ZM19 14l.6 1.4L21 16l-1.4.6L19 18l-.6-1.4L17 16l1.4-.6Z"),
     Eye("M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" + circle(12f, 12f, 3f)),
     EyeOff("M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 5.2A9.6 9.6 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 4M6.1 6.1A17 17 0 0 0 2 12s4 7 10 7a9.7 9.7 0 0 0 4-.9"),
-    User(circle(12f, 8f, 4f) + "M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1");
+    User(circle(12f, 8f, 4f) + "M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"),
+    Clock(circle(12f, 12f, 10f) + "M12 6v6l4 2"),
+
+    // Extra category icons (Lucide-style, 24x24 stroke paths).
+    CreditCard(rect(2f, 5f, 20f, 14f) + "M2 10h20M6 15h4"),
+    Landmark("M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2 3 8h18Z"),
+    Droplet("M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7Z"),
+    Lightbulb("M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5M9 18h6M10 22h4"),
+    Music("M9 18V5l12-2v13" + circle(6f, 18f, 3f) + circle(18f, 16f, 3f)),
+    Film(rect(2f, 2f, 20f, 20f) + "M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"),
+    Gamepad("M6 12h4M8 10v4M15 13h.01M18 11h.01M17.32 5H6.68a4 4 0 0 0-3.98 3.59C2.6 9.42 2 14.46 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.41-1.41A2 2 0 0 1 9.83 16h4.34a2 2 0 0 1 1.41.59L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.55-.6-6.58-.68-7.26A4 4 0 0 0 17.32 5Z"),
+    Shirt("M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23Z"),
+    Book("M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"),
+    Tv(rect(2f, 7f, 20f, 15f) + "M17 2l-5 5-5-5"),
+    Wifi("M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"),
+    Pill("M10.5 20.5 3.5 13.5a4.95 4.95 0 1 1 7-7l7 7a4.95 4.95 0 1 1-7 7ZM8.5 8.5l7 7"),
+    Fuel("M3 22h12M4 9h10M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"),
+    Bike(circle(5.5f, 17.5f, 3.5f) + circle(18.5f, 17.5f, 3.5f) + "M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM12 17.5V14l-3-3 4-3 2 3h2"),
+    Bus("M4 16V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10M4 16h16v3H4ZM2 11h20M7 16h.01M17 16h.01M6 19v2M18 19v2"),
+    Coins(circle(8f, 8f, 6f) + "M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"),
+    TrendingUp("M22 7l-8.5 8.5-5-5L2 17M16 7h6v6"),
+    Cake("M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1M2 21h20M7 8v3M12 8v3M17 8v3M7 4h.01M12 4h.01M17 4h.01"),
+    Scissors(circle(6f, 6f, 3f) + circle(6f, 18f, 3f) + "M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"),
+    Umbrella("M22 12a10.06 10.06 1 0 0-20 0ZM12 12v8a2 2 0 0 0 4 0M12 2v1"),
+    Laptop("M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"),
+    Cart(circle(8f, 21f, 1f) + circle(19f, 21f, 1f) + "M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"),
+    Tag("M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.41l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42Z" + circle(7.5f, 7.5f, .5f)),
+    Star("M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01Z");
 
     companion object {
         private val byName = entries.associateBy { it.name }
@@ -74,6 +101,8 @@ enum class MIcon(private val path: String) {
         val picker: List<MIcon> = listOf(
             Utensils, Coffee, Car, Plane, ShoppingBag, Receipt, Phone, House, Heart, Graduation, Gift, Briefcase,
             Wallet, Sparkles, Users, Chart, Calendar, Transfer, Sun, Moon, Settings, Search, More, Home,
+            CreditCard, Landmark, Droplet, Lightbulb, Music, Film, Gamepad, Shirt, Book, Tv, Wifi, Pill,
+            Fuel, Bike, Bus, Coins, TrendingUp, Cake, Scissors, Umbrella, Laptop, Cart, Tag, Star,
         )
     }
 

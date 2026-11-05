@@ -1,10 +1,14 @@
 package com.monager.app.ui.categories
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,6 +62,7 @@ fun CategoryEditSheet(
     onClose: () -> Unit,
 ) {
     val c = mc
+    BackHandler(onBack = onClose) // Back closes this sheet, not the whole Categories screen
     var name by rememberSaveable(existing?.id) { mutableStateOf(existing?.name.orEmpty()) }
     var icon by rememberSaveable(existing?.id) { mutableStateOf(existing?.iconKey ?: MIcon.Coffee.name) }
     var tone by rememberSaveable(existing?.id) { mutableStateOf(existing?.toneKey ?: Tone.Mint.name) }
@@ -106,6 +111,8 @@ fun CategoryEditSheet(
             }
 
             Text("Biểu tượng", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+            // 48 icons: scroll inside a fixed-height area so the sheet never outgrows small screens.
+            Column(Modifier.fillMaxWidth().heightIn(max = 190.dp).verticalScroll(rememberScrollState())) {
             MIcon.picker.chunked(6).forEach { rowIcons ->
                 Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     rowIcons.forEach { ic ->
@@ -119,6 +126,7 @@ fun CategoryEditSheet(
                         ) { MIconView(ic, if (sel) c.primary else c.muted) }
                     }
                 }
+            }
             }
 
             if (onMove != null) {

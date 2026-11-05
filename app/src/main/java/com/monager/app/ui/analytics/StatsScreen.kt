@@ -44,7 +44,7 @@ import com.monager.app.core.Money
 import com.monager.app.core.PeriodKind
 import com.monager.app.ui.components.AppCard
 import com.monager.app.ui.components.AppIconButton
-import com.monager.app.ui.components.InsetField
+import com.monager.app.ui.components.DateField
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.ScreenHeader
@@ -233,13 +233,13 @@ private fun CustomRangeSheet(onApply: (java.time.LocalDate, java.time.LocalDate)
     var to by rememberSaveable { mutableStateOf(DebtMath.formatDate(today)) }
     val f = DebtMath.parseDate(from)
     val t = DebtMath.parseDate(to)
-    val ok = f != null && t != null
-    SimpleSheet("Khoảng thời gian", "Định dạng dd/MM/yyyy", onClose) {
+    val ok = f != null && t != null && !f.isAfter(t)
+    SimpleSheet("Khoảng thời gian", "Chọn ngày bắt đầu và kết thúc", onClose) {
         Text("Từ ngày", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
-        InsetField(from, { if (it.length <= 10) from = it }, "01/11/2026")
+        DateField(from, { from = it }, "Từ ngày")
         Text("Đến ngày", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
-        InsetField(to, { if (it.length <= 10) to = it }, "30/11/2026")
-        if (!ok) Text("Ngày không hợp lệ", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+        DateField(to, { to = it }, "Đến ngày")
+        if (f != null && t != null && f.isAfter(t)) Text("Ngày bắt đầu phải trước ngày kết thúc", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         RaisedBox(
             Modifier.fillMaxWidth().padding(top = 14.dp).height(44.dp).alpha(if (ok) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
             onClick = { if (f != null && t != null) onApply(f, t) },

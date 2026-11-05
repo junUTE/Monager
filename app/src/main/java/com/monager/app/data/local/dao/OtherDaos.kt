@@ -59,6 +59,9 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE month = :month AND categoryId IS :categoryId LIMIT 1")
     suspend fun find(month: Int, categoryId: Long?): BudgetEntity?
     @Upsert suspend fun upsert(b: BudgetEntity): Long
+    @Query("SELECT * FROM budgets WHERE month = :month") suspend fun listMonth(month: Int): List<BudgetEntity>
+    @Query("SELECT COUNT(*) FROM budgets WHERE month = :month") fun observeCount(month: Int): Flow<Int>
+    @Insert suspend fun insertAll(list: List<BudgetEntity>)
     @Query("DELETE FROM budgets WHERE id = :id") suspend fun delete(id: Long)
 }
 
@@ -74,6 +77,8 @@ interface VaultDao {
     )
     fun observeWithSaved(): Flow<List<VaultWithSaved>>
     @Upsert suspend fun upsert(v: VaultEntity): Long
+    @Query("DELETE FROM transactions WHERE vaultId = :id AND type = 'SAVING'") suspend fun deleteSavings(id: Long)
+    @Query("DELETE FROM vaults WHERE id = :id") suspend fun delete(id: Long)
 }
 
 data class DebtWithPaid(@Embedded val debt: DebtEntity, val paid: Long)

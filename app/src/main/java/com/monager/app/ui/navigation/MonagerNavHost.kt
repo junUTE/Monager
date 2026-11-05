@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -41,6 +42,7 @@ import com.monager.app.di.AppContainer
 import com.monager.app.ui.analytics.StatsScreen
 import com.monager.app.ui.budgets.BudgetsScreen
 import com.monager.app.ui.categories.CategoriesScreen
+import com.monager.app.ui.components.LocalOpenSheets
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
@@ -68,6 +70,7 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
     var inDebts by rememberSaveable { mutableStateOf(false) }
     var hideBalance by rememberSaveable { mutableStateOf(false) }
     var addType by rememberSaveable { mutableIntStateOf(-1) } // -1 = sheet closed
+    val openSheets = remember { mutableIntStateOf(0) }
 
     val inSub = inCategories || inStats || inDebts
     // System back: close the add sheet, then the open sub-screen.
@@ -87,6 +90,7 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
         WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !dark
     }
 
+    CompositionLocalProvider(LocalOpenSheets provides openSheets) {
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when {
             inCategories -> CategoriesScreen(viewModel(factory = factory), onBack = { inCategories = false })
@@ -103,7 +107,7 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
                 onOpenCategories = { inCategories = true }, onOpenDebts = { inDebts = true }, onOpenStats = { inStats = true },
             )
         }
-        if (!inSub) {
+        if (!inSub && openSheets.intValue == 0) {
             BottomNav(
                 selected = tab,
                 onSelect = { tab = it },
@@ -115,6 +119,7 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
             val addVm: AddTransactionViewModel = viewModel(factory = factory)
             AddTransactionSheet(addVm, initialType = addType, onClose = { addType = -1 })
         }
+    }
     }
 }
 

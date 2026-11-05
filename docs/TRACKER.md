@@ -11,8 +11,8 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 | M1 Data layer | done | 6 / 6 |
 | M2 Add Transaction | done | 9 / 9 |
 | M3 Home | done except device jank check (redesigned 2026-11-05) | 5 / 6 |
-| M4 Categories | done except rich icon set | 5 / 6 |
-| M5 Budgets & Savings | core done; 3 optional items deferred | 4 / 7 |
+| M4 Categories | done | 6 / 6 |
+| M5 Budgets & Savings | done | 7 / 7 |
 | M6 Debts | done | 7 / 7 |
 | M7 Analytics | done except profiler check | 6 / 7 |
 | M8 Settings & Data | done (locale setting deferred) | 5 / 6 |
@@ -43,7 +43,7 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 - [x] 3D numpad UI with Backspace and C — 5 rows: C ÷ × ⌫ / 7-9 − / 4-6 + / 1-3 = / 0 000 k
 - [x] Live result preview (e.g. 50k + 30k → 80.000 đ) — expression line + big result
 - [x] 2-level category picker (parent → child) — from Room
-- [x] Date picker — Material date picker dialog; past, today and future dates (future = planned, shown under "Tương lai", not counted in the balance until its day). No time-of-day picker: today keeps the real time, other days use 12:00
+- [x] Date + time pickers — Material date picker and a 24h time picker; past, today and future dates (future = planned, shown under "Tương lai", not counted in the balance until its day). The chosen date and time are saved as-is
 - [x] Note field
 - [x] Wallet selector — intentionally REMOVED from the UI (user does not use wallets); the first wallet is used implicitly. Wallet data stays in the DB and in backups
 - [x] Save + validation + haptic feedback (LongPress haptic on save)
@@ -62,16 +62,16 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 - [x] Reorder via Lên/Xuống in the edit sheet (no drag-and-drop)
 - [x] Icon + color picker
 - [x] Delete rules: blocked with a message when the category or a child has transactions (no reassign flow)
-- [~] Vector icon set — 24 icons selectable, 40 total in MIcon; the "rich" Lucide/Phosphor set is still to import
+- [x] Vector icon set — 48 icons selectable (24 added 2026-11-05: finance, bills, entertainment, transport, shopping), 69 total in MIcon; the picker scrolls inside a fixed-height area
 
 ## M5 Budgets & Savings (F4)
 - [x] Total monthly budget (set/edit/remove from the screen; Home strip reads it)
 - [x] Per-category budget (parent categories; spent includes subcategories)
-- [~] 3D progress bar with thumb handle — drawn with thumb, but not draggable; limits are set by typing the amount
+- [x] Draggable thumb slider (`LimitSlider`) in the budget edit sheet: tap or drag to set the limit (snaps to 100k / 500k), typing an exact amount still works. Progress bars on the list show spent vs limit
 - [x] Red warning at ≥90% (bar, percent and overview ring)
-- [~] Savings vault: create, read, update done; delete deferred (savings already left the wallet balance)
+- [x] Savings vault: create, edit, delete (with confirmation; deleting also removes its deposits so the money returns to the balance, in one DB transaction)
 - [x] Vault progress % (from SAVING transactions)
-- [ ] Budget rollover to next month (optional)
+- [x] Budget rollover: when the new month has no budgets but last month had, a card offers "reuse last month" (copies limits only; never overwrites existing ones). Carrying unspent money over is NOT implemented
 
 ## M6 Debts (F5)
 - [x] Tabs: Borrowed / Lent
@@ -129,15 +129,17 @@ Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 - [x] Balance counts only transactions up to the end of today (`observeBalanceUntil`); planned/future ones appear in the "Tương lai" tab
 - [x] Rules audit vs AGENTS.md: no `shadow()`/`blur()`, no `Double` money, all lists keyed with contentType, `collectAsStateWithLifecycle` everywhere (fixed Debts payment history), heavy mapping on `Dispatchers.Default`
 - [x] Release build (R8) smoke-tested on an API 35 emulator: Home, Transactions, Account, Add sheet, date picker, future transaction flow
-- [ ] Still open by decision/need: dependency migration to AGP 9 / compileSdk 37; thumb dragging on budget bars; vault delete; budget rollover; rich Lucide/Phosphor icon set; time-of-day picker; due-date and custom-range date pickers (typed dd/MM/yyyy); due-date reminders; device testing (file picker, Excel files in real Excel/Sheets, Moto G35 jank)
+- [x] Optional items done 2026-11-05: draggable limit slider, vault delete, budget rollover (copy limits), 24 more icons, time picker, date pickers for debt due date and the custom report range
+- [x] Fixed while testing on the emulator: the bottom navigation covered the buttons of bottom sheets on tab screens (it now hides while a sheet is open); system Back closed the whole screen/app instead of just a sheet (SimpleSheet and CategoryEditSheet now handle Back); date/time dialogs now use the app's green palette
+- [ ] Still open by decision/need: dependency migration to AGP 9 / compileSdk 37; carrying unspent budget over; due-date reminders (explicitly skipped); device testing (file picker, Excel files in real Excel/Sheets, Moto G35 jank)
 
 ## Test status
-- 96 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 17, DebtMath 6, Periods 10, Database/Repository 22, Backup/Import/Export 14, Codecs 15 (Robolectric).
+- 98 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 17, DebtMath 6, Periods 10, Database/Repository 24, Backup/Import/Export 14, Codecs 15 (Robolectric).
 - No UI tests. Manual smoke tests only on an API 35 emulator (see M9 notes); never on a real Moto G35.
 
 ## Next up
 - UI redesign 2026-11-05 (commit 49ee042): Home = balance + month report + week/month compare + top spending + recent; new Transactions tab (last month / this month / future); tabs are Home, Transactions, Budgets, Account; Reports and Debts are sub-screens (Home "Xem báo cáo", Account); the wallet field was removed from the Add sheet (the first wallet is used implicitly). Home search/bell icons from the reference were intentionally not added (no feature behind them).
-- M9 Performance hardening, then M10 Release. Not yet device-tested: file picker flows (export/import) and the Excel files opening in real Excel/Sheets. M5 leftovers: rollover (optional), vault delete, draggable thumb.
+- M9 (finish on a real device), then M10 Release. Not yet device-tested: file picker flows (export/import) and the Excel files opening in real Excel/Sheets.
 - All five screens now read Room; the sample-data file is deleted.
 - Debug APK grew 10.8 -> 14.4 MB across M4-M7 (debug is unminified); measure the release build in M9.
 - Due-date reminders ("nhắc trước 3 ngày" in the mockup) are NOT implemented; the note was removed from the UI so it does not promise it. Needs a notification permission + WorkManager; decide in M8/M10.

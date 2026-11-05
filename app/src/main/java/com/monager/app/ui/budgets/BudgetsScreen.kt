@@ -46,6 +46,7 @@ import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.AppProgress
 import com.monager.app.ui.components.CategoryIcon
 import com.monager.app.ui.components.InsetField
+import com.monager.app.ui.components.LimitSlider
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
@@ -85,6 +86,9 @@ fun BudgetsScreen(vm: BudgetsViewModel) {
             item(key = "overview") {
                 Overview(st.overall) { editBudgetId = st.overall?.id ?: NONE; budgetSheet = true }
             }
+            if (st.overall == null && st.rows.isEmpty() && st.previousCount > 0) {
+                item(key = "rollover", contentType = "rollover") { RolloverCard(st.previousCount) { vm.copyLastMonth {} } }
+            }
             item(key = "t1") { Box(Modifier.padding(top = 6.dp)) { SectionTitle("Hạn mức theo danh mục") } }
             if (st.rows.isEmpty()) {
                 item(key = "empty1") { Text("Chưa có hạn mức theo danh mục. Nhấn + để thêm.", color = c.muted, fontSize = 12.sp) }
@@ -114,7 +118,22 @@ fun BudgetsScreen(vm: BudgetsViewModel) {
         }
         if (vaultSheet) {
             val existing = st.vaults.firstOrNull { it.id == editVaultId }
-            VaultEditSheet(existing, { name, target -> vm.saveVault(existing?.id ?: NEW_VAULT, name, target) { vaultSheet = false } }, { vaultSheet = false })
+            VaultEditSheet(
+                existing, { name, target -> vm.saveVault(existing?.id ?: NEW_VAULT, name, target) { vaultSheet = false } },
+                existing?.let { e -> { vm.deleteVault(e.id) { vaultSheet = false } } }, { vaultSheet = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun RolloverCard(count: Int, onClick: () -> Unit) {
+    val c = mc
+    AppCard {
+        Text("Tháng mới chưa có hạn mức", color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text("Dùng lại $count hạn mức của tháng trước (chỉ sao chép số tiền tối đa).", color = c.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+        RaisedBox(Modifier.fillMaxWidth().padding(top = 10.dp).height(40.dp), radius = 12.dp, brush = c.heroBrush, onClick = onClick) {
+            Text("Dùng lại hạn mức tháng trước", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -225,12 +244,19 @@ private fun BudgetEditSheet(
                 if (st.overall == null) {
                     item(key = "all") { Chip("Tổng tháng", pick == OVERALL) { pickedCat = OVERALL } }
                 }
-                items(st.available, key = { it.id }) { cat -> Chip(cat.name, pick == cat.id) { pickedCat = cat.id } }
+                items(st.available, key = { it.id }, contentType = { "chip" }) { cat -> Chip(cat.name, pick == cat.id) { pickedCat = cat.id } }
             }
         }
         Text("Số tiền tối đa / tháng", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
         InsetField(digits, { v -> if (v.length <= 12 && v.all { it.isDigit() }) digits = v }, "Ví dụ 5000000", numeric = true)
         if (limit > 0) Text(Money.format(limit), color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+        // Drag the thumb to set the limit (typing above stays available for exact amounts). The range is fixed when the sheet opens.
+        val sliderMax = androidx.compose.runtime.remember(existing?.id) { maxOf(10_000_000L, ((limit * 2 + 999_999) / 1_000_000) * 1_000_000) }
+        LimitSlider(limit, sliderMax, if (sliderMax <= 20_000_000L) 100_000L else 500_000L, { digits = it.toString() }, Modifier.padding(top = 8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("0", color = c.muted, fontSize = 9.sp)
+            Text(Money.format(sliderMax), color = c.muted, fontSize = 9.sp)
+        }
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (onDelete != null) {
                 RaisedBox(Modifier.size(width = 52.dp, height = 44.dp), radius = 13.dp, onClick = onDelete) { MIconView(MIcon.Delete, c.expense) }
@@ -253,21 +279,42 @@ private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun VaultEditSheet(existing: VaultRow?, onSave: (String, Long) -> Unit, onClose: () -> Unit) {
+private fun VaultEditSheet(existing: VaultRow?, onSave: (String, Long) -> Unit, onDelete: (() -> Unit)?, onClose: () -> Unit) {
     val c = mc
     var name by rememberSaveable(existing?.id) { mutableStateOf(existing?.name.orEmpty()) }
     var digits by rememberSaveable(existing?.id) { mutableStateOf(existing?.target?.toString().orEmpty()) }
     val target = digits.toLongOrNull() ?: 0L
     val ok = name.isNotBlank() && target > 0
+    var confirmDelete by rememberSaveable(existing?.id) { mutableStateOf(false) }
     SimpleSheet(if (existing == null) "Thêm quỹ tiết kiệm" else "Sửa quỹ tiết kiệm", "Gửi tiền vào quỹ bằng giao dịch loại Tiết kiệm", onClose) {
         Text("Tên quỹ", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
         InsetField(name, { if (it.length <= 30) name = it }, "Ví dụ: Mua laptop")
         Text("Mục tiêu", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
         InsetField(digits, { v -> if (v.length <= 12 && v.all { it.isDigit() }) digits = v }, "Ví dụ 20000000", numeric = true)
         if (target > 0) Text(Money.format(target), color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
-        RaisedBox(
-            Modifier.fillMaxWidth().padding(top = 14.dp).height(44.dp).alpha(if (ok) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
-            onClick = { if (ok) onSave(name, target) },
-        ) { Text("Lưu", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+        if (confirmDelete && existing != null && onDelete != null) {
+            Text(
+                "Xóa quỹ \"${existing.name}\"? ${Money.format(existing.saved)} đã gửi vào quỹ sẽ được trả lại vào số dư. Không hoàn tác được.",
+                color = c.text, fontSize = 12.sp, modifier = Modifier.padding(top = 14.dp),
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RaisedBox(Modifier.weight(1f).height(44.dp), radius = 13.dp, onClick = { confirmDelete = false }) {
+                    Text("Giữ lại", color = c.text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                RaisedBox(Modifier.weight(1f).height(44.dp), radius = 13.dp, onClick = onDelete) {
+                    Text("Xóa quỹ", color = c.expense, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (existing != null && onDelete != null) {
+                    RaisedBox(Modifier.size(width = 52.dp, height = 44.dp), radius = 13.dp, onClick = { confirmDelete = true }) { MIconView(MIcon.Delete, c.expense) }
+                }
+                RaisedBox(
+                    Modifier.weight(1f).height(44.dp).alpha(if (ok) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
+                    onClick = { if (ok) onSave(name, target) },
+                ) { Text("Lưu", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            }
+        }
     }
 }

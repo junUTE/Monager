@@ -19,12 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,6 +50,8 @@ import com.monager.app.data.local.entity.TxType
 import com.monager.app.ui.AddTransactionViewModel
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.CategoryIcon
+import com.monager.app.ui.components.DatePickerSheet
+import com.monager.app.ui.components.TimePickerSheet
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
@@ -93,6 +90,8 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
     val today = remember { LocalDate.now() }
     var epochDay by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
     var pickingDate by rememberSaveable { mutableStateOf(false) }
+    var minuteOfDay by rememberSaveable { mutableIntStateOf(java.time.LocalTime.now().let { it.hour * 60 + it.minute }) }
+    var pickingTime by rememberSaveable { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     var note by rememberSaveable { mutableStateOf("") }
 
@@ -128,7 +127,7 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
                 Text("Thêm giao dịch", color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 Text(
                     "Lưu", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.alpha(if (canSave) 1f else .4f).clickable(enabled = canSave) { save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay)) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } }.padding(8.dp),
+                    modifier = Modifier.alpha(if (canSave) 1f else .4f).clickable(enabled = canSave) { save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay), minuteOfDay) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } }.padding(8.dp),
                 )
             }
             SegmentedTabs(Types, type, { type = it; parentId = -1; childId = -1 })
@@ -172,6 +171,7 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
 
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FormField(MIcon.Calendar, "Ngày", dayLabel(LocalDate.ofEpochDay(epochDay), today), Modifier.weight(1f)) { pickingDate = true }
+                FormField(MIcon.Clock, "Giờ", "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60), Modifier.weight(1f)) { pickingTime = true }
             }
             Row(
                 Modifier.fillMaxWidth().padding(top = 8.dp).height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.surface2).padding(horizontal = 10.dp),
@@ -203,29 +203,18 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
                 }
             }
             if (pickingDate) DatePickerSheet(epochDay, { epochDay = it }, { pickingDate = false })
+            if (pickingTime) TimePickerSheet(minuteOfDay, { minuteOfDay = it }, { pickingTime = false })
             RaisedBox(
                 Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp).alpha(if (canSave) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
-                onClick = { if (canSave) save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay)) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } },
+                onClick = { if (canSave) save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay), minuteOfDay) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } },
             ) { Text("Lưu giao dịch", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DatePickerSheet(epochDay: Long, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
-    // The Material picker works in UTC midnight millis; convert to/from a plain epoch day.
-    val state = rememberDatePickerState(initialSelectedDateMillis = epochDay * 86_400_000L)
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { state.selectedDateMillis?.let { onPick(Math.floorDiv(it, 86_400_000L)) }; onDismiss() }) { Text("Chọn") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } },
-    ) { DatePicker(state) }
-}
-
-private fun save(vm: AddTransactionViewModel, type: TxType, amount: Long, categoryId: Long?, vaultId: Long, walletId: Long, note: String, day: LocalDate, onDone: () -> Unit) {
-    // Today keeps the real time; other days use midday so they sort sensibly. Future days become "planned" transactions.
-    val ts = if (day == LocalDate.now()) System.currentTimeMillis() else day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+private fun save(vm: AddTransactionViewModel, type: TxType, amount: Long, categoryId: Long?, vaultId: Long, walletId: Long, note: String, day: LocalDate, minuteOfDay: Int, onDone: () -> Unit) {
+    // Date + time chosen in the form; a later date makes it a "planned" (future) transaction.
+    val ts = day.atTime(minuteOfDay / 60, minuteOfDay % 60).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     vm.save(
         TransactionEntity(
             walletId = walletId, type = type, amount = amount,

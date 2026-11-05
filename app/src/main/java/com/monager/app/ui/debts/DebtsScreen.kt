@@ -42,6 +42,7 @@ import com.monager.app.core.TimeRanges
 import com.monager.app.ui.components.AppCard
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.AppProgress
+import com.monager.app.ui.components.DateField
 import com.monager.app.ui.components.InsetField
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
@@ -200,9 +201,8 @@ private fun DebtEditSheet(
         Label("Số tiền")
         InsetField(digits, { v -> if (v.length <= 12 && v.all { it.isDigit() }) digits = v }, "Ví dụ 5000000", numeric = true)
         if (amount > 0) Text(Money.format(amount), color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
-        Label("Ngày hẹn (dd/MM/yyyy, có thể bỏ trống)")
-        InsetField(dueText, { if (it.length <= 10) dueText = it }, "15/11/2026")
-        if (!dueOk) Text("Ngày không hợp lệ", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+        Label("Ngày hẹn (có thể bỏ trống)")
+        DateField(dueText, { dueText = it }, "Không có hạn", clearable = true)
         Label("Ghi chú")
         InsetField(note, { if (it.length <= 80) note = it }, "Không bắt buộc")
         error?.let { Text(it, color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp)) }

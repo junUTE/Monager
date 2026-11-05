@@ -84,9 +84,17 @@ val LocalMonagerColors = staticCompositionLocalOf { LightColors }
 fun MonagerTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val colors = if (dark) DarkColors else LightColors
     val scheme = if (dark) {
-        darkColorScheme(primary = colors.primary, background = colors.bg, surface = colors.surface, onSurface = colors.text)
+        darkColorScheme(
+            primary = colors.primary, background = colors.bg, surface = colors.surface, onSurface = colors.text,
+            secondaryContainer = colors.primarySoft, onSecondaryContainer = colors.primary,
+            surfaceContainerHigh = colors.surface, surfaceContainerHighest = colors.surface2,
+        )
     } else {
-        lightColorScheme(primary = colors.primary, background = colors.bg, surface = colors.surface, onSurface = colors.text)
+        lightColorScheme(
+            primary = colors.primary, background = colors.bg, surface = colors.surface, onSurface = colors.text,
+            secondaryContainer = colors.primarySoft, onSecondaryContainer = colors.primary,
+            surfaceContainerHigh = colors.surface, surfaceContainerHighest = colors.surface2,
+        )
     }
     CompositionLocalProvider(LocalMonagerColors provides colors) {
         MaterialTheme(colorScheme = scheme, content = content)
