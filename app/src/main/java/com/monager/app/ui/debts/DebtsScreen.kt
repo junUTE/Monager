@@ -253,7 +253,7 @@ private fun PaySheet(d: DebtRow, lend: Boolean, onPay: (amount: Long, record: Bo
 @Composable
 private fun DetailSheet(d: DebtRow, vm: DebtsViewModel, onEdit: () -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
     val c = mc
-    val payments by remember(d.id) { vm.payments(d.id) }.collectAsState(emptyList())
+    val payments by remember(d.id) { vm.payments(d.id) }.collectAsStateWithLifecycle(emptyList())
     var confirm by remember { mutableStateOf(false) }
     SimpleSheet(d.name, "Tổng ${Money.format(d.total)} · đã ${Money.format(d.paid)} · còn ${Money.format(d.remaining.coerceAtLeast(0))}", onClose) {
         if (d.note.isNotBlank()) Text(d.note, color = c.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))

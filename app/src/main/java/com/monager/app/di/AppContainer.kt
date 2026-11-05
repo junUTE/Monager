@@ -11,7 +11,10 @@ import com.monager.app.data.repository.DebtRepository
 import com.monager.app.data.repository.TransactionRepository
 import com.monager.app.data.repository.VaultRepository
 import com.monager.app.data.repository.WalletRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.io.File
+import java.time.LocalDate
 
 /** Manual DI: no reflection, no startup cost. Everything is lazy. */
 class AppContainer(context: Context) {
@@ -25,6 +28,11 @@ class AppContainer(context: Context) {
     val debts by lazy { DebtRepository(database) }
     val backup by lazy { BackupRepository(database) }
     val settings by lazy { SettingsStore(appContext) }
+
+    /** Current local date; ViewModels rebuild their month/week windows when it changes (call [refreshToday] from onStart). */
+    private val _today = MutableStateFlow(LocalDate.now())
+    val today: StateFlow<LocalDate> = _today
+    fun refreshToday() { _today.value = LocalDate.now() }
 
     val contentResolver: ContentResolver get() = appContext.contentResolver
     fun databaseFile(): File = appContext.getDatabasePath("monager.db")

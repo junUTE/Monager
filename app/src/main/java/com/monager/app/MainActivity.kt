@@ -12,6 +12,11 @@ import com.monager.app.ui.navigation.MonagerNavHost
 import com.monager.app.ui.theme.MonagerTheme
 
 class MainActivity : ComponentActivity() {
+    override fun onStart() {
+        super.onStart()
+        (application as MonagerApp).container.refreshToday()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

@@ -30,7 +30,6 @@ class MonagerColors(
     val cardBottom: Color,
     val shadow: Color,
     val highlight: Color,
-    val homeBackground: Brush,
     val heroBrush: Brush,
     val cardBrush: Brush,
 )
@@ -54,10 +53,6 @@ val LightColors = MonagerColors(
     cardBottom = Color(0xFFF2F5F2),
     shadow = Color(0x240F172A),
     highlight = Color(0xE6FFFFFF),
-    homeBackground = Brush.verticalGradient(
-        0f to Color(0xFF102C22), 0.31f to Color(0xFF1E4939), 0.58f to Color(0xFF8B9D8D),
-        0.79f to Color(0xFFD8DDD3), 1f to Color(0xFFE8ECE9),
-    ),
     heroBrush = HeroBrush,
     cardBrush = Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF2F5F2))),
 )
@@ -79,9 +74,6 @@ val DarkColors = MonagerColors(
     cardBottom = Color(0xFF17231D),
     shadow = Color(0x47000000),
     highlight = Color(0x1FFFFFFF),
-    homeBackground = Brush.verticalGradient(
-        0f to Color(0xFF081C15), 0.42f to Color(0xFF123427), 0.72f to Color(0xFF182A22), 1f to Color(0xFF111914),
-    ),
     heroBrush = HeroBrush,
     cardBrush = Brush.verticalGradient(listOf(Color(0xFF26342D), Color(0xFF17231D))),
 )

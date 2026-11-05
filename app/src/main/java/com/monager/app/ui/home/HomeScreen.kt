@@ -178,13 +178,14 @@ private fun CompareCard(state: HomeState) {
         Canvas(Modifier.fillMaxWidth().padding(top = 16.dp).height(110.dp)) {
             val barW = size.width * 0.22f
             val r = CornerRadius(8.dp.toPx())
-            val xs = floatArrayOf(size.width * 0.25f - barW / 2f, size.width * 0.75f - barW / 2f)
-            drawRoundRect(barColor, Offset(xs[0], 0f), Size(barW, size.height), r)
-            drawRoundRect(barColor, Offset(xs[1], 0f), Size(barW, size.height), r)
+            val x0 = size.width * 0.25f - barW / 2f
+            val x1 = size.width * 0.75f - barW / 2f
+            drawRoundRect(barColor, Offset(x0, 0f), Size(barW, size.height), r)
+            drawRoundRect(barColor, Offset(x1, 0f), Size(barW, size.height), r)
             val ph = (size.height * prevFrac).coerceAtLeast(if (p.previous > 0) 6.dp.toPx() else 0f)
             val ch = (size.height * curFrac).coerceAtLeast(if (p.current > 0) 6.dp.toPx() else 0f)
-            drawRoundRect(fill.copy(alpha = .55f), Offset(xs[0], size.height - ph), Size(barW, ph), r)
-            drawRoundRect(fill, Offset(xs[1], size.height - ch), Size(barW, ch), r)
+            drawRoundRect(fill.copy(alpha = .55f), Offset(x0, size.height - ph), Size(barW, ph), r)
+            drawRoundRect(fill, Offset(x1, size.height - ch), Size(barW, ch), r)
         }
         Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
             Text(labels.first, color = c.muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))

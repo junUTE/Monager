@@ -19,7 +19,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,6 +39,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,10 +70,17 @@ private val KeyRows = listOf(
     listOf("7", "8", "9", "−"),
     listOf("4", "5", "6", "+"),
     listOf("1", "2", "3", "="),
-    listOf("000", "0"),
+    listOf("0", "000", "k"),
 )
 private val Operators = setOf("÷", "×", "−", "+", "=")
-private val DayLabels = listOf("Hôm nay", "Hôm qua", "2 ngày trước")
+private val DateFormat = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+private fun dayLabel(d: LocalDate, today: LocalDate): String = when (d) {
+    today -> "Hôm nay"
+    today.minusDays(1) -> "Hôm qua"
+    today.plusDays(1) -> "Ngày mai"
+    else -> d.format(DateFormat)
+}
 
 @Composable
 fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: () -> Unit) {
@@ -76,7 +90,10 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
     var parentId by rememberSaveable { mutableLongStateOf(-1L) }
     var childId by rememberSaveable { mutableLongStateOf(-1L) }
     var vaultId by rememberSaveable { mutableLongStateOf(-1L) }
-    var daysAgo by rememberSaveable { mutableIntStateOf(0) }
+    val today = remember { LocalDate.now() }
+    var epochDay by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
+    var pickingDate by rememberSaveable { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
     var note by rememberSaveable { mutableStateOf("") }
 
     val txType = when (type) { 1 -> TxType.INCOME; 2 -> TxType.SAVING; else -> TxType.EXPENSE }
@@ -111,7 +128,7 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
                 Text("Thêm giao dịch", color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 Text(
                     "Lưu", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.alpha(if (canSave) 1f else .4f).clickable(enabled = canSave) { save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, daysAgo, onClose) }.padding(8.dp),
+                    modifier = Modifier.alpha(if (canSave) 1f else .4f).clickable(enabled = canSave) { save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay)) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } }.padding(8.dp),
                 )
             }
             SegmentedTabs(Types, type, { type = it; parentId = -1; childId = -1 })
@@ -128,20 +145,20 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
             if (txType == TxType.SAVING) {
                 Text("Chọn quỹ tiết kiệm", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(vaults, key = { it.id }) { v ->
+                    items(vaults, key = { it.id }, contentType = { "vault" }) { v ->
                         PickItem(MIcon.fromKey(v.iconKey), Tone.Yellow, v.name, v.id == vaultId) { vaultId = v.id }
                     }
                 }
             } else {
                 Text("Chọn danh mục", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(tree, key = { it.parent.id }) { n ->
+                    items(tree, key = { it.parent.id }, contentType = { "category" }) { n ->
                         PickItem(MIcon.fromKey(n.parent.iconKey), Tone.fromKey(n.parent.toneKey), n.parent.name, n.parent.id == parentId) { parentId = n.parent.id; childId = -1 }
                     }
                 }
                 if (selectedNode != null && selectedNode.children.isNotEmpty()) {
                     LazyRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(selectedNode.children, key = { it.id }) { ch ->
+                        items(selectedNode.children, key = { it.id }, contentType = { "child" }) { ch ->
                             val on = ch.id == childId
                             Text(
                                 ch.name, color = if (on) c.onPrimary else c.muted, fontSize = 10.sp,
@@ -154,7 +171,7 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
             }
 
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FormField(MIcon.Calendar, "Ngày", DayLabels[daysAgo], Modifier.weight(1f)) { daysAgo = (daysAgo + 1) % DayLabels.size }
+                FormField(MIcon.Calendar, "Ngày", dayLabel(LocalDate.ofEpochDay(epochDay), today), Modifier.weight(1f)) { pickingDate = true }
             }
             Row(
                 Modifier.fillMaxWidth().padding(top = 8.dp).height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.surface2).padding(horizontal = 10.dp),
@@ -171,7 +188,7 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
                 KeyRows.forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         row.forEach { k ->
-                            val wide = k == "000" || k == "0"
+                            val wide = k == "0"
                             RaisedBox(
                                 Modifier.weight(if (wide) 2f else 1f).height(40.dp), radius = 10.dp,
                                 onClick = { expression = AmountInput(expression).press(k).expression },
@@ -185,18 +202,30 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
                     }
                 }
             }
+            if (pickingDate) DatePickerSheet(epochDay, { epochDay = it }, { pickingDate = false })
             RaisedBox(
                 Modifier.fillMaxWidth().padding(top = 12.dp).height(44.dp).alpha(if (canSave) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
-                onClick = { if (canSave) save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, daysAgo, onClose) },
+                onClick = { if (canSave) save(vm, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay)) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } },
             ) { Text("Lưu giao dịch", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }
 
-private fun save(vm: AddTransactionViewModel, type: TxType, amount: Long, categoryId: Long?, vaultId: Long, walletId: Long, note: String, daysAgo: Int, onDone: () -> Unit) {
-    val day = LocalDate.now().minusDays(daysAgo.toLong())
-    // Today keeps the real time; past days use midday so they sort sensibly.
-    val ts = if (daysAgo == 0) System.currentTimeMillis() else day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerSheet(epochDay: Long, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
+    // The Material picker works in UTC midnight millis; convert to/from a plain epoch day.
+    val state = rememberDatePickerState(initialSelectedDateMillis = epochDay * 86_400_000L)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = { state.selectedDateMillis?.let { onPick(Math.floorDiv(it, 86_400_000L)) }; onDismiss() }) { Text("Chọn") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } },
+    ) { DatePicker(state) }
+}
+
+private fun save(vm: AddTransactionViewModel, type: TxType, amount: Long, categoryId: Long?, vaultId: Long, walletId: Long, note: String, day: LocalDate, onDone: () -> Unit) {
+    // Today keeps the real time; other days use midday so they sort sensibly. Future days become "planned" transactions.
+    val ts = if (day == LocalDate.now()) System.currentTimeMillis() else day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     vm.save(
         TransactionEntity(
             walletId = walletId, type = type, amount = amount,

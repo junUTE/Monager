@@ -2,7 +2,7 @@ package com.monager.app.core
 
 /**
  * Immutable state machine behind the in-app numpad. UI just calls [press] and renders [expression]/[result].
- * Keys: "0".."9", "000", "+", "−", "×", "÷", "=", "C", "⌫".
+ * Keys: "0".."9", "000", "k" (x1000 suffix, once per number, after a digit), "+", "−", "×", "÷", "=", "C", "⌫".
  */
 data class AmountInput(val expression: String = "") {
 
@@ -16,6 +16,7 @@ data class AmountInput(val expression: String = "") {
         "C" -> AmountInput()
         "⌫" -> AmountInput(expression.dropLast(1))
         "=" -> result?.takeIf { it >= 0 }?.let { AmountInput(it.toString()) } ?: this
+        "k" -> thousands()
         "+", "−", "×", "÷" -> operator(key[0])
         else -> digits(key)
     }
@@ -26,9 +27,16 @@ data class AmountInput(val expression: String = "") {
         return AmountInput(base + op)
     }
 
+    private fun thousands(): AmountInput {
+        val lastNumber = expression.takeLastWhile { it !in OPS }
+        if (lastNumber.isEmpty() || lastNumber.last() == 'k' || expression.length >= MAX_LEN) return this
+        return AmountInput("${expression}k")
+    }
+
     private fun digits(key: String): AmountInput {
         if (expression.length + key.length > MAX_LEN) return this
         val lastNumber = expression.takeLastWhile { it !in OPS }
+        if (lastNumber.endsWith('k')) return this // digits after "k" would make an invalid number
         if (lastNumber.length + key.length > MAX_DIGITS) return this
         // Avoid leading zeros: "0" + "5" -> "5", "0" + "000" -> "0"
         if (lastNumber == "0") {

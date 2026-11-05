@@ -1,6 +1,5 @@
 package com.monager.app.data.local.dao
 
-import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -47,9 +46,6 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun get(id: Long): TransactionEntity?
 
-    @Query("$ROW_SELECT ORDER BY t.timestamp DESC, t.id DESC")
-    fun pagedRows(): PagingSource<Int, TxRow>
-
     @Query("$ROW_SELECT ORDER BY t.timestamp DESC, t.id DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<TxRow>>
 
@@ -66,6 +62,16 @@ interface TransactionDao {
         """,
     )
     fun observeTotalBalance(): Flow<Long>
+
+    /** Same as [observeTotalBalance] but ignores transactions dated after [until] (planned/future ones). */
+    @Query(
+        """
+        SELECT COALESCE((SELECT SUM(initialBalance) FROM wallets WHERE archived = 0), 0) +
+               COALESCE((SELECT SUM(CASE type WHEN 'INCOME' THEN amount WHEN 'EXPENSE' THEN -amount WHEN 'SAVING' THEN -amount ELSE 0 END)
+                         FROM transactions WHERE timestamp <= :until), 0)
+        """,
+    )
+    fun observeBalanceUntil(until: Long): Flow<Long>
 
     @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = :type AND timestamp BETWEEN :from AND :to")
     fun observeTotal(type: TxType, from: Long, to: Long): Flow<Long>

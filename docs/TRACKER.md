@@ -1,20 +1,20 @@
 # Monager – Progress Tracker
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[!]` blocked. Update this file with every PR.
-Last updated: 2026-11-04 (M0–M3 progress; see sections below)
+Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
 
 ## Summary
 
 | Milestone | Status | Done / Total |
 |-----------|--------|--------------|
-| M0 Foundation | in progress | 7 / 8 |
+| M0 Foundation | done except full dependency bump | 7 / 8 |
 | M1 Data layer | done | 6 / 6 |
-| M2 Add Transaction | in progress | 8 / 9 |
-| M3 Home | in progress | 5 / 6 |
-| M4 Categories | in progress | 5 / 6 |
-| M5 Budgets & Savings | in progress | 4 / 7 |
+| M2 Add Transaction | done | 9 / 9 |
+| M3 Home | done except device jank check (redesigned 2026-11-05) | 5 / 6 |
+| M4 Categories | done except rich icon set | 5 / 6 |
+| M5 Budgets & Savings | core done; 3 optional items deferred | 4 / 7 |
 | M6 Debts | done | 7 / 7 |
-| M7 Analytics | in progress | 6 / 7 |
+| M7 Analytics | done except profiler check | 6 / 7 |
 | M8 Settings & Data | done (locale setting deferred) | 5 / 6 |
 | M9 Performance | in progress | 3 / 6 |
 | M10 Release | not started | 0 / 5 |
@@ -23,7 +23,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [x] Repo skeleton, Gradle, version catalog (pushed to GitHub)
 - [x] Room v1 draft schema + DAOs
 - [x] Build verified from CLI (Gradle 8.9 + Studio JBR): `assembleDebug` OK, debug APK 10.8 MB. Not yet run on a device
-- [ ] Bump dependency versions to latest stable (still the versions I chose from memory)
+- [~] Dependency versions: raised Compose BOM 2024.12.01 -> 2025.06.01, Room 2.6.1 -> 2.7.2, activity 1.10.1, core-ktx 1.16.0, DataStore 1.1.7, coroutines 1.10.2. HELD BACK on purpose: AGP 8.7.3 / Kotlin 2.0.21 / Gradle 8.9 and lifecycle 2.8.7 (lifecycle 2.9 lint crashes on AGP 8.7). The very latest libraries (e.g. navigation 2.10, compose BOM 2026.09) need compileSdk 37 + AGP 9, which is a separate toolchain migration. Removed unused `navigation-compose` and `room-paging` (month-windowed queries are used instead of Paging)
 - [x] Design tokens (light + dark), typography — ui/theme/Theme.kt
 - [x] Shared components: `RaisedCard`, `RaisedButton`, `Chip`, `TopBar`, bottom nav — raised()/RaisedBox, SegmentedTabs, AppProgress, ScreenHeader, bottom nav
 - [x] Icon registry + first 20 vector icons — 40 icons, `MIcon.fromKey`
@@ -39,20 +39,20 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 
 ## M2 Add Transaction (F1)
 - [x] Mode switch Expense / Income / Saving
-- [x] `CalcEngine` (+ − × ÷, "k" suffix) with unit tests — 12 tests; "k" supported by engine, no k key on numpad yet
-- [x] 3D numpad UI with Backspace and C — 5 rows: C ÷ × ⌫ / 7-9 − / 4-6 + / 1-3 = / 000 0
+- [x] `CalcEngine` (+ − × ÷, "k" suffix) with unit tests — 12 tests; the numpad now has a "k" key (50k -> 50.000, once per number, only after a digit)
+- [x] 3D numpad UI with Backspace and C — 5 rows: C ÷ × ⌫ / 7-9 − / 4-6 + / 1-3 = / 0 000 k
 - [x] Live result preview (e.g. 50k + 30k → 80.000 đ) — expression line + big result
 - [x] 2-level category picker (parent → child) — from Room
-- [~] Date/time picker — tap cycles Hôm nay / Hôm qua / 2 ngày trước; real picker + time still todo
+- [x] Date picker — Material date picker dialog; past, today and future dates (future = planned, shown under "Tương lai", not counted in the balance until its day). No time-of-day picker: today keeps the real time, other days use 12:00
 - [x] Note field
-- [x] Wallet/account selector — tap cycles wallets (single seeded wallet for now)
-- [x] Save + validation + haptic feedback — saves to Room with validation; haptic not done
+- [x] Wallet selector — intentionally REMOVED from the UI (user does not use wallets); the first wallet is used implicitly. Wallet data stays in the DB and in backups
+- [x] Save + validation + haptic feedback (LongPress haptic on save)
 
 ## M3 Home (F2)
-- [x] Hero 3D balance card (total, month income, month expense) — real data from Room
-- [x] Quick actions (+Expense, +Income, Transfer) — Transfer button has no action yet
-- [x] Mini budget progress bar — reads the overall monthly budget; no UI to set one yet
-- [x] Recent transactions timeline (Today / Yesterday / date headers) — row-level date labels, 20 latest
+- [x] Balance header with show/hide eye, month report card (spent / income / daily bars), week-or-month compare card — real data from Room (redesigned 2026-11-05 to match the reference screens)
+- [x] Quick actions replaced by the center "+" button; Transfer has no UI (no wallets in use)
+- [x] Budget progress now lives only on the Budgets tab (removed from Home in the redesign)
+- [x] Top spending (week/month) and recent transactions (5 latest, one card); full list + date groups in the new Transactions tab (last month / this month / future)
 - [x] Income green (+) / expense red (−), 40x40dp vector icons
 - [ ] Jank check on Moto G35
 
@@ -89,7 +89,7 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 - [x] Ranked category breakdown list (percent sums to exactly 100, children roll up to parent) + change vs previous period
 - [x] Empty/loading states
 - [x] Chart geometry precomputed off main thread (AnalyticsViewModel on Dispatchers.Default)
-- [~] Zero-allocation draw: code-reviewed (Stroke/CornerRadius remembered, sweeps and fractions precomputed) but NOT profiled — verify in M9 with the Android Studio profiler
+- [~] Zero-allocation draw: re-reviewed 2026-11-05 (Donut/Bars/Home charts clean; fixed per-draw `Stroke` allocations in the Budgets ring and a per-draw array in the Home compare chart) but NOT profiled with the Android Studio allocation profiler
 
 ## M8 Settings & Data (F7)
 - [x] Theme: Light / Dark / System (saved in DataStore; chosen in the Account tab)
@@ -124,23 +124,16 @@ Last updated: 2026-11-04 (M0–M3 progress; see sections below)
 
 - 2026-11-04: Figma Make link unreadable (403). Mockup built from feature list; awaiting exported frames to reconcile.
 
-## Front-end (Compose) status – added 2026-11-04
-Source of truth: Figma Make export in `tmp/` (git-ignored). UI is static (sample data in `ui/sample/SampleData.kt`); **not yet compiled or run on a device**.
-
-- [x] Theme tokens light + dark (`ui/theme/Theme.kt`)
-- [x] 40 vector icons from the mockup as in-code ImageVectors (`ui/components/MIcon.kt`)
-- [x] Cheap Neo-3D: `raised()` / `RaisedBox` (no blur, no shadow())
-- [x] Shared components: header, segmented tabs, progress (Canvas), cards
-- [x] Home, Stats (Canvas donut + bars), Budgets & Savings, Debts, Categories, Icon picker, Add Transaction sheet, bottom nav with center FAB, dark toggle
-- [ ] First compile + run on Moto G35; fix any build errors
-- [ ] Add Transaction: calculator operators (+ − × ÷) — mockup only has digits
-- [ ] Drag-to-reorder categories, thumb dragging on budget bars (visual only for now)
-- [ ] Replace SampleData with ViewModels + Room
-- [ ] Persist theme in DataStore
+## Review pass 2026-11-05 (M0–M8)
+- [x] Month/week windows now derive from `AppContainer.today` (refreshed in `MainActivity.onStart`), so Home, Transactions and Budgets roll over at midnight / month change instead of freezing at ViewModel creation
+- [x] Balance counts only transactions up to the end of today (`observeBalanceUntil`); planned/future ones appear in the "Tương lai" tab
+- [x] Rules audit vs AGENTS.md: no `shadow()`/`blur()`, no `Double` money, all lists keyed with contentType, `collectAsStateWithLifecycle` everywhere (fixed Debts payment history), heavy mapping on `Dispatchers.Default`
+- [x] Release build (R8) smoke-tested on an API 35 emulator: Home, Transactions, Account, Add sheet, date picker, future transaction flow
+- [ ] Still open by decision/need: dependency migration to AGP 9 / compileSdk 37; thumb dragging on budget bars; vault delete; budget rollover; rich Lucide/Phosphor icon set; time-of-day picker; due-date and custom-range date pickers (typed dd/MM/yyyy); due-date reminders; device testing (file picker, Excel files in real Excel/Sheets, Moto G35 jank)
 
 ## Test status
-- 89 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 12, DebtMath 6, Periods 10, Database/Repository 20, Backup/Import/Export 14, Codecs 15 (Robolectric).
-- No UI tests, no device/emulator run yet.
+- 96 JVM unit tests pass (`./gradlew :app:testDebugUnitTest`): CalcEngine 12, AmountInput 17, DebtMath 6, Periods 10, Database/Repository 22, Backup/Import/Export 14, Codecs 15 (Robolectric).
+- No UI tests. Manual smoke tests only on an API 35 emulator (see M9 notes); never on a real Moto G35.
 
 ## Next up
 - UI redesign 2026-11-05 (commit 49ee042): Home = balance + month report + week/month compare + top spending + recent; new Transactions tab (last month / this month / future); tabs are Home, Transactions, Budgets, Account; Reports and Debts are sub-screens (Home "Xem báo cáo", Account); the wallet field was removed from the Add sheet (the first wallet is used implicitly). Home search/bell icons from the reference were intentionally not added (no feature behind them).

@@ -72,11 +72,6 @@ internal fun TxRow.toItem(today: LocalDate): TxItem {
 }
 
 class HomeViewModel(private val c: AppContainer) : ViewModel() {
-    private val today = LocalDate.now()
-    private val month = YearMonth.from(today)
-    private val monthRange = TimeRanges.month(month)
-    private val weekStart = today.with(DayOfWeek.MONDAY)
-
     private fun days(from: LocalDate, toExclusive: LocalDate) =
         MillisRange(TimeRanges.startOfDay(from), TimeRanges.startOfDay(toExclusive) - 1)
 
@@ -93,25 +88,34 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
             PeriodSpend(a, b, t)
         }
 
-    private val daily: Flow<List<Float>> = c.transactions.daily(monthRange.from, monthRange.to).map { rows ->
+    private fun daily(month: YearMonth, r: MillisRange): Flow<List<Float>> = c.transactions.daily(r.from, r.to).map { rows ->
         val sums = LongArray(month.lengthOfMonth())
         rows.forEach { if (it.type == TxType.EXPENSE) sums[it.day.substring(8).toInt() - 1] += it.total }
         val max = sums.maxOrNull()?.takeIf { it > 0 }
         if (max == null) emptyList() else sums.map { it.toFloat() / max }
     }
 
-    val state: StateFlow<HomeState> = combine(
-        c.transactions.totalBalance(),
-        c.transactions.total(TxType.INCOME, monthRange.from, monthRange.to),
-        combine(
-            period(monthRange, TimeRanges.month(month.minusMonths(1))),
-            period(days(weekStart, weekStart.plusDays(7)), days(weekStart.minusDays(7), weekStart)),
-        ) { m, w -> m to w },
-        daily,
-        c.transactions.recent(5),
-    ) { balance, income, periods, dailyExpense, recent ->
-        HomeState(true, balance, income, periods.first, periods.second, dailyExpense, recent.map { it.toItem(today) })
+    /** All windows (this week/month) are derived from today, so they roll over when the date changes while the app lives on. */
+    private fun build(today: LocalDate): Flow<HomeState> {
+        val month = YearMonth.from(today)
+        val monthRange = TimeRanges.month(month)
+        val weekStart = today.with(DayOfWeek.MONDAY)
+        return combine(
+            c.transactions.totalBalance(today),
+            c.transactions.total(TxType.INCOME, monthRange.from, monthRange.to),
+            combine(
+                period(monthRange, TimeRanges.month(month.minusMonths(1))),
+                period(days(weekStart, weekStart.plusDays(7)), days(weekStart.minusDays(7), weekStart)),
+            ) { m, w -> m to w },
+            daily(month, monthRange),
+            c.transactions.recent(5),
+        ) { balance, income, periods, dailyExpense, recent ->
+            HomeState(true, balance, income, periods.first, periods.second, dailyExpense, recent.map { it.toItem(today) })
+        }
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val state: StateFlow<HomeState> = c.today.flatMapLatest { build(it) }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default) // mapping off the main thread
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
@@ -131,15 +135,15 @@ class TransactionsViewModel(private val c: AppContainer) : ViewModel() {
     fun select(i: Int) { tab.value = i }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val state: StateFlow<TransactionsState> = tab.flatMapLatest { t ->
-        val thisMonth = YearMonth.now()
+    val state: StateFlow<TransactionsState> = combine(tab, c.today) { t, today -> t to today }.flatMapLatest { (t, today) ->
+        val thisMonth = YearMonth.from(today)
         val r = when (t) {
             0 -> TimeRanges.month(thisMonth.minusMonths(1))
             1 -> TimeRanges.month(thisMonth)
-            else -> MillisRange(TimeRanges.month(thisMonth).to + 1, Long.MAX_VALUE)
+            // "Future": anything after today (planned transactions, not yet in the balance).
+            else -> MillisRange(TimeRanges.startOfDay(today.plusDays(1)), Long.MAX_VALUE)
         }
-        combine(c.transactions.totalBalance(), c.transactions.rowsBetween(r.from, r.to)) { balance, rows ->
-            val today = LocalDate.now()
+        combine(c.transactions.totalBalance(today), c.transactions.rowsBetween(r.from, r.to)) { balance, rows ->
             val groups = ArrayList<TxGroup>()
             var label = ""
             var bucket = ArrayList<TxItem>()
@@ -229,34 +233,35 @@ data class BudgetsState(
 )
 
 class BudgetsViewModel(private val c: AppContainer) : ViewModel() {
-    private val month = YearMonth.now()
-    private val range = TimeRanges.month(month)
-    private val key = TimeRanges.monthKey(month)
-
-    val state: StateFlow<BudgetsState> = combine(
-        c.budgets.forMonth(key, range.from, range.to),
-        c.categories.tree(TxType.EXPENSE),
-        c.vaults.vaults(),
-    ) { budgets, tree, vaults ->
-        val byId = tree.associateBy { it.parent.id }
-        val rows = budgets.filter { it.categoryId != null }.mapNotNull { b ->
-            val cat = byId[b.categoryId]?.parent ?: return@mapNotNull null
-            BudgetRow(b.id, cat.id, cat.name, MIcon.fromKey(cat.iconKey), Tone.fromKey(cat.toneKey), b.limitAmount, b.spent)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val state: StateFlow<BudgetsState> = c.today.flatMapLatest { today ->
+        val month = YearMonth.from(today)
+        val range = TimeRanges.month(month)
+        combine(
+            c.budgets.forMonth(TimeRanges.monthKey(month), range.from, range.to),
+            c.categories.tree(TxType.EXPENSE),
+            c.vaults.vaults(),
+        ) { budgets, tree, vaults ->
+            val byId = tree.associateBy { it.parent.id }
+            val rows = budgets.filter { it.categoryId != null }.mapNotNull { b ->
+                val cat = byId[b.categoryId]?.parent ?: return@mapNotNull null
+                BudgetRow(b.id, cat.id, cat.name, MIcon.fromKey(cat.iconKey), Tone.fromKey(cat.toneKey), b.limitAmount, b.spent)
+            }
+            val overall = budgets.firstOrNull { it.categoryId == null }
+                ?.let { BudgetRow(it.id, null, "Tổng tháng", MIcon.Wallet, Tone.Sage, it.limitAmount, it.spent) }
+            val used = rows.mapNotNull { it.categoryId }.toSet()
+            BudgetsState(
+                overall, rows,
+                vaults.map { VaultRow(it.vault.id, it.vault.name, it.vault.iconKey, it.vault.target, it.saved) },
+                tree.map { it.parent }.filter { it.id !in used },
+            )
         }
-        val overall = budgets.firstOrNull { it.categoryId == null }
-            ?.let { BudgetRow(it.id, null, "Tổng tháng", MIcon.Wallet, Tone.Sage, it.limitAmount, it.spent) }
-        val used = rows.mapNotNull { it.categoryId }.toSet()
-        BudgetsState(
-            overall, rows,
-            vaults.map { VaultRow(it.vault.id, it.vault.name, it.vault.iconKey, it.vault.target, it.saved) },
-            tree.map { it.parent }.filter { it.id !in used },
-        )
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetsState())
 
     fun setBudget(categoryId: Long?, limit: Long, onDone: () -> Unit) {
-        viewModelScope.launch { c.budgets.set(key, categoryId, limit); onDone() }
+        viewModelScope.launch { c.budgets.set(TimeRanges.monthKey(YearMonth.from(c.today.value)), categoryId, limit); onDone() }
     }
 
     fun removeBudget(id: Long, onDone: () -> Unit) {

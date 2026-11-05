@@ -67,6 +67,19 @@ class DatabaseTest {
         assertEquals(200L, db.vaultDao().observeWithSaved().first().first().saved)
     }
 
+    @Test fun balanceUntilIgnoresFutureTransactions() = runBlocking {
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 11, timestamp = 2_000))
+        tx.add(expense(300, 1, ts = 9_000)) // planned: after the cut-off
+        assertEquals(1_000L, db.transactionDao().observeBalanceUntil(5_000).first())
+        assertEquals(700L, db.transactionDao().observeBalanceUntil(10_000).first())
+    }
+
+    @Test fun rowsBetweenReturnsOnlyTheWindowNewestFirst() = runBlocking {
+        tx.add(expense(1, 1, ts = 1_000)); tx.add(expense(2, 1, ts = 5_000)); tx.add(expense(3, 1, ts = 9_000))
+        assertEquals(listOf(2L, 1L), tx.rowsBetween(500, 6_000).first().map { it.amount })
+        assertEquals(listOf(3L), tx.rowsBetween(6_000, Long.MAX_VALUE).first().map { it.amount })
+    }
+
     @Test fun periodTotalsRespectRange() = runBlocking {
         tx.add(expense(100, 1, 5_000)); tx.add(expense(50, 1, 2_000_000))
         assertEquals(100L, tx.total(TxType.EXPENSE, from, to).first())

@@ -1,6 +1,7 @@
 package com.monager.app.data.repository
 
 import androidx.room.withTransaction
+import com.monager.app.core.TimeRanges
 import com.monager.app.data.local.MonagerDatabase
 import com.monager.app.data.local.dao.BudgetWithSpent
 import com.monager.app.data.local.dao.DebtWithPaid
@@ -16,13 +17,15 @@ import com.monager.app.data.local.entity.VaultEntity
 import com.monager.app.data.local.entity.WalletEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 class TransactionRepository(private val db: MonagerDatabase) {
     private val dao = db.transactionDao()
-    fun pagedRows() = dao.pagedRows()
     fun recent(limit: Int): Flow<List<TxRow>> = dao.observeRecent(limit)
     fun rowsBetween(from: Long, to: Long): Flow<List<TxRow>> = dao.observeRowsBetween(from, to)
-    fun totalBalance(): Flow<Long> = dao.observeTotalBalance()
+    /** Balance as of the end of [today]; transactions dated later are "future" and not counted yet. */
+    fun totalBalance(today: LocalDate = LocalDate.now()): Flow<Long> =
+        dao.observeBalanceUntil(TimeRanges.startOfDay(today.plusDays(1)) - 1)
     fun total(type: TxType, from: Long, to: Long) = dao.observeTotal(type, from, to)
     fun totalsByParent(type: TxType, from: Long, to: Long) = dao.observeTotalsByParent(type, from, to)
     fun buckets(from: Long, to: Long, bucketMs: Long) = dao.observeBuckets(from, to, bucketMs)
