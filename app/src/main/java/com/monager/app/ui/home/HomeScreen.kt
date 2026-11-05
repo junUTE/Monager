@@ -41,6 +41,9 @@ import com.monager.app.ui.components.CategoryIcon
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.SegmentedTabs
 import com.monager.app.ui.components.TransactionRow
+import com.monager.app.ui.components.drawCompareBars
+import com.monager.app.ui.components.drawDailyBars
+import com.monager.app.ui.components.drawSplitBar
 import com.monager.app.ui.components.raised
 import com.monager.app.ui.theme.mc
 
@@ -126,33 +129,14 @@ private fun MonthReportCard(state: HomeState) {
         val track = c.surface2
         val expense = c.expense
         val incomeColor = c.income
-        Canvas(Modifier.fillMaxWidth().padding(top = 12.dp).height(4.dp)) {
-            val r = CornerRadius(size.height / 2f)
-            if (total <= 0) {
-                drawRoundRect(track, Offset.Zero, size, r)
-            } else {
-                drawRoundRect(incomeColor, Offset.Zero, size, r)
-                drawRoundRect(expense, Offset.Zero, Size(size.width * frac, size.height), r)
-            }
-        }
+        Canvas(Modifier.fillMaxWidth().padding(top = 12.dp).height(4.dp)) { drawSplitBar(total > 0, frac, track, incomeColor, expense) }
         if (state.dailyExpense.isEmpty()) {
             Box(Modifier.fillMaxWidth().height(130.dp), contentAlignment = Alignment.Center) {
                 Text("Nhập giao dịch để xem báo cáo", color = c.muted, fontSize = 13.sp)
             }
         } else {
             val values = state.dailyExpense
-            Canvas(Modifier.fillMaxWidth().padding(top = 16.dp).height(130.dp)) {
-                val slot = size.width / values.size
-                val barW = slot * 0.6f
-                val r = CornerRadius(barW / 2f)
-                values.forEachIndexed { i, v ->
-                    val h = (size.height * v).coerceAtLeast(if (v > 0f) 4.dp.toPx() else 2.dp.toPx())
-                    drawRoundRect(
-                        if (v > 0f) expense else track,
-                        Offset(i * slot + (slot - barW) / 2f, size.height - h), Size(barW, h), r,
-                    )
-                }
-            }
+            Canvas(Modifier.fillMaxWidth().padding(top = 16.dp).height(130.dp)) { drawDailyBars(values, expense, track) }
         }
     }
 }
@@ -175,18 +159,7 @@ private fun CompareCard(state: HomeState) {
         val curFrac = if (max <= 0) 0f else p.current.toFloat() / max
         val barColor = c.surface2
         val fill = c.primary
-        Canvas(Modifier.fillMaxWidth().padding(top = 16.dp).height(110.dp)) {
-            val barW = size.width * 0.22f
-            val r = CornerRadius(8.dp.toPx())
-            val x0 = size.width * 0.25f - barW / 2f
-            val x1 = size.width * 0.75f - barW / 2f
-            drawRoundRect(barColor, Offset(x0, 0f), Size(barW, size.height), r)
-            drawRoundRect(barColor, Offset(x1, 0f), Size(barW, size.height), r)
-            val ph = (size.height * prevFrac).coerceAtLeast(if (p.previous > 0) 6.dp.toPx() else 0f)
-            val ch = (size.height * curFrac).coerceAtLeast(if (p.current > 0) 6.dp.toPx() else 0f)
-            drawRoundRect(fill.copy(alpha = .55f), Offset(x0, size.height - ph), Size(barW, ph), r)
-            drawRoundRect(fill, Offset(x1, size.height - ch), Size(barW, ch), r)
-        }
+        Canvas(Modifier.fillMaxWidth().padding(top = 16.dp).height(110.dp)) { drawCompareBars(prevFrac, curFrac, p.previous > 0, p.current > 0, barColor, fill) }
         Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
             Text(labels.first, color = c.muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
             Text(labels.second, color = c.muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))

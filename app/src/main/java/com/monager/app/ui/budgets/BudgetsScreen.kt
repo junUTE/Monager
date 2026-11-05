@@ -47,6 +47,7 @@ import com.monager.app.ui.components.AppProgress
 import com.monager.app.ui.components.CategoryIcon
 import com.monager.app.ui.components.InsetField
 import com.monager.app.ui.components.LimitSlider
+import com.monager.app.ui.components.drawBudgetRing
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
@@ -151,11 +152,8 @@ private fun Overview(overall: BudgetRow?, onClick: () -> Unit) {
             val w = with(androidx.compose.ui.platform.LocalDensity.current) { 16.dp.toPx() }
             val trackStroke = androidx.compose.runtime.remember(w) { Stroke(w) }
             val arcStroke = androidx.compose.runtime.remember(w) { Stroke(w, cap = StrokeCap.Round) }
-            Canvas(Modifier.fillMaxSize()) {
-                val sz = Size(size.width - w, size.height - w)
-                drawArc(Color(0x2EFFFFFF), 0f, 360f, false, Offset(w / 2, w / 2), sz, style = trackStroke)
-                drawArc(if (frac >= .9f) Color(0xFFFFA39A) else Color(0xFFB8E0C2), -90f, 360f * frac, false, Offset(w / 2, w / 2), sz, style = arcStroke)
-            }
+            val ringColor = if (frac >= .9f) Color(0xFFFFA39A) else Color(0xFFB8E0C2)
+            Canvas(Modifier.fillMaxSize()) { drawBudgetRing(frac, w, trackStroke, arcStroke, Color(0x2EFFFFFF), ringColor) }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(if (overall == null) "—" else "${overall.pct}%", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text("đã dùng", color = Color.White.copy(alpha = .88f), fontSize = 8.sp)

@@ -26,6 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.monager.app.core.CurrencyMark
+import com.monager.app.core.Money
+import com.monager.app.core.NumberStyle
 import com.monager.app.data.backup.FileKind
 import com.monager.app.data.prefs.ThemeMode
 import com.monager.app.ui.components.AppCard
@@ -41,6 +44,8 @@ import java.time.LocalDate
 
 private val Themes = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)
 private val ThemeLabels = listOf("Hệ thống", "Sáng", "Tối")
+private val NumberStyles = NumberStyle.entries
+private val CurrencyMarks = CurrencyMark.entries
 
 @Composable
 fun SettingsScreen(vm: SettingsViewModel, onOpenCategories: () -> Unit, onOpenDebts: () -> Unit, onOpenStats: () -> Unit) {
@@ -75,6 +80,19 @@ fun SettingsScreen(vm: SettingsViewModel, onOpenCategories: () -> Unit, onOpenDe
             item(key = "t1") { SectionTitle("Giao diện") }
             item(key = "theme") {
                 SegmentedTabs(ThemeLabels, Themes.indexOf(theme).coerceAtLeast(0), { vm.setTheme(Themes[it]) })
+            }
+            item(key = "tfmt") { Box(Modifier.padding(top = 6.dp)) { SectionTitle("Định dạng tiền") } }
+            item(key = "fmt", contentType = "format") {
+                val fmt by vm.moneyFormat.collectAsStateWithLifecycle()
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Dấu phân cách hàng nghìn", color = c.muted, fontSize = 10.sp)
+                    SegmentedTabs(NumberStyles.map { it.label }, NumberStyles.indexOf(fmt.style).coerceAtLeast(0), { vm.setNumberStyle(NumberStyles[it]) })
+                    Text("Ký hiệu tiền", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+                    SegmentedTabs(CurrencyMarks.map { it.label }, CurrencyMarks.indexOf(fmt.mark).coerceAtLeast(0), { vm.setCurrencyMark(CurrencyMarks[it]) })
+                    // Live preview: Money reads the saved format, so this line changes as soon as a tab is tapped.
+                    Text("Ví dụ: ${Money.format(1_234_567)}", color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Chỉ đổi cách hiển thị; số liệu và file xuất không thay đổi.", color = c.muted, fontSize = 10.sp)
+                }
             }
             item(key = "t0") { SectionTitle("Quản lý") }
             item(key = "stats") { Row3("Báo cáo", "Dòng tiền, danh mục chi tiêu, so sánh", MIcon.Chart, onClick = onOpenStats) }

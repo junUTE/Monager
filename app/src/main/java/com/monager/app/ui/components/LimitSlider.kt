@@ -47,16 +47,5 @@ fun LimitSlider(value: Long, max: Long, step: Long, onChange: (Long) -> Unit, mo
                 } while (event.changes.any { it.pressed })
             }
         },
-    ) {
-        val r = 12.dp.toPx()
-        val h = 8.dp.toPx()
-        val top = (size.height - h) / 2f
-        val corner = CornerRadius(h / 2f)
-        val x = r + (size.width - 2 * r) * frac
-        drawRoundRect(track, Offset(r, top), Size(size.width - 2 * r, h), corner)
-        drawRoundRect(fill, Offset(r, top), Size(x - r, h), corner)
-        drawCircle(Color(0x33000000), r, Offset(x + 1.dp.toPx(), size.height / 2f + 1.5.dp.toPx()))
-        drawCircle(Color.White, r, Offset(x, size.height / 2f))
-        drawCircle(fill, 4.dp.toPx(), Offset(x, size.height / 2f))
-    }
+    ) { drawLimitSlider(frac, track, fill) }
 }

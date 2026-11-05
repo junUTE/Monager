@@ -5,6 +5,9 @@ import android.provider.OpenableColumns
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.monager.app.core.CurrencyMark
+import com.monager.app.core.MoneyFormat
+import com.monager.app.core.NumberStyle
 import com.monager.app.data.backup.BackupFormatException
 import com.monager.app.data.backup.FileKind
 import com.monager.app.data.backup.RestoreResult
@@ -37,11 +40,14 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     val ui: StateFlow<SettingsUi> = _ui.asStateFlow()
 
     val themeMode: StateFlow<ThemeMode> = c.settings.themeMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
+    val moneyFormat: StateFlow<MoneyFormat> = c.settings.moneyFormat.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MoneyFormat())
     private var pendingSnapshot: Snapshot? = null
 
     init { refreshInfo() }
 
     fun setTheme(mode: ThemeMode) { viewModelScope.launch { c.settings.setThemeMode(mode) } }
+    fun setNumberStyle(style: NumberStyle) { viewModelScope.launch { c.settings.setNumberStyle(style) } }
+    fun setCurrencyMark(mark: CurrencyMark) { viewModelScope.launch { c.settings.setCurrencyMark(mark) } }
     fun dismissMessage() = _ui.update { it.copy(message = null) }
 
     fun refreshInfo() {

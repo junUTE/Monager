@@ -125,20 +125,7 @@ fun SegmentedTabs(options: List<String>, selected: Int, onSelect: (Int) -> Unit,
 fun AppProgress(fraction: Float, modifier: Modifier = Modifier, danger: Boolean = false, thumb: Boolean = true, trackColor: Color = mc.surface2, fillColor: Color? = null) {
     val c = mc
     val fill = fillColor ?: if (danger) c.expense else c.primary
-    Canvas(modifier.fillMaxWidth().height(16.dp)) {
-        val h = 8.dp.toPx()
-        val top = (size.height - h) / 2f
-        val r = CornerRadius(h / 2f)
-        drawRoundRect(trackColor, Offset(0f, top), Size(size.width, h), r)
-        val w = size.width * fraction.coerceIn(0f, 1f)
-        drawRoundRect(fill, Offset(0f, top), Size(w, h), r)
-        if (thumb) {
-            val tr = 7.dp.toPx()
-            val cx = w.coerceIn(tr, size.width - tr)
-            drawCircle(Color(0x33000000), tr, Offset(cx + 1.dp.toPx(), size.height / 2f + 1.5.dp.toPx()))
-            drawCircle(Color.White, tr, Offset(cx, size.height / 2f))
-        }
-    }
+    Canvas(modifier.fillMaxWidth().height(16.dp)) { drawProgress(fraction, trackColor, fill, thumb) }
 }
 
 @Composable

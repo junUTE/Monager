@@ -136,7 +136,7 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
             Column(Modifier.fillMaxWidth().height(78.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text(if (input.hasOperator) expression else " ", color = c.muted, fontSize = 13.sp, maxLines = 1)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("₫ ", color = c.muted, fontSize = 17.sp)
+                    Text(Money.mark + " ", color = c.muted, fontSize = 17.sp)
                     Text(Money.plain(amount), color = c.text, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 }
             }

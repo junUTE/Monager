@@ -45,6 +45,8 @@ import com.monager.app.core.PeriodKind
 import com.monager.app.ui.components.AppCard
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.DateField
+import com.monager.app.ui.components.drawCashFlowBars
+import com.monager.app.ui.components.drawDonut
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.ScreenHeader
@@ -142,20 +144,7 @@ private fun Donut(st: AnalyticsState, palette: List<Color>) {
     val style = remember(strokePx) { Stroke(strokePx) }
     val emptyRing = c.surface2
     Box(Modifier.size(130.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val inset = strokePx / 2f
-            val arcSize = Size(size.width - strokePx, size.height - strokePx)
-            if (st.slices.isEmpty()) {
-                drawArc(emptyRing, 0f, 360f, false, Offset(inset, inset), arcSize, style = style)
-            } else {
-                var start = -90f
-                for (i in st.slices.indices) {
-                    val sweep = st.slices[i].sweep
-                    drawArc(palette[i % palette.size], start, sweep, false, Offset(inset, inset), arcSize, style = style)
-                    start += sweep
-                }
-            }
-        }
+        Canvas(Modifier.fillMaxSize()) { drawDonut(st.slices, palette, emptyRing, strokePx, style) }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(compact(st.totalExpense), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Text(st.label, color = c.muted, fontSize = 8.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 18.dp), textAlign = TextAlign.Center)
@@ -203,22 +192,10 @@ private fun CashFlowBars(bars: List<BarUi>, modifier: Modifier) {
     val gap = with(density) { 3.dp.toPx() }
     val radius = remember(gap) { CornerRadius(with(density) { 4.dp.toPx() }) }
     Column(modifier) {
-        Canvas(Modifier.fillMaxWidth().height(110.dp)) {
-            val groupW = size.width / bars.size
-            val barW = ((groupW - gap * 3) / 2f).coerceIn(2f, 14.dp.toPx())
-            for (g in 1..3) {
-                val y = size.height * g / 4f
-                drawLine(c.line, Offset(0f, y), Offset(size.width, y), 1f)
-            }
-            for (i in bars.indices) {
-                val b = bars[i]
-                val x0 = groupW * i + (groupW - (barW * 2 + gap)) / 2f
-                val hi = size.height * b.incomeFrac
-                val he = size.height * b.expenseFrac
-                if (hi > 0f) drawRoundRect(c.income, Offset(x0, size.height - hi), Size(barW, hi), radius)
-                if (he > 0f) drawRoundRect(c.expense, Offset(x0 + barW + gap, size.height - he), Size(barW, he), radius)
-            }
-        }
+        val income = c.income
+        val expense = c.expense
+        val line = c.line
+        Canvas(Modifier.fillMaxWidth().height(110.dp)) { drawCashFlowBars(bars, income, expense, line, gap, radius) }
         Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
             bars.forEach { Text(it.label, color = c.muted, fontSize = 8.sp, maxLines = 1, modifier = Modifier.weight(1f), textAlign = TextAlign.Center) }
         }
