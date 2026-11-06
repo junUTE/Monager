@@ -7,6 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +30,7 @@ import com.monager.app.ui.AddTransactionViewModel
 import com.monager.app.ui.AppViewModelFactory
 import com.monager.app.ui.HomeViewModel
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -54,7 +58,7 @@ import com.monager.app.ui.theme.mc
 import com.monager.app.ui.transaction.AddTransactionSheet
 
 enum class Tab(val icon: MIcon, val label: String) {
-    Home(MIcon.Home, "Trang chủ"), Transactions(MIcon.Receipt, "Giao dịch"), Budgets(MIcon.Wallet, "Hạn mức"), Account(MIcon.User, "Tài khoản")
+    Home(MIcon.Home, "Home"), Transactions(MIcon.Receipt, "Transactions"), Budgets(MIcon.Wallet, "Budgets"), Account(MIcon.Settings, "Settings")
 }
 
 /** State-driven navigation: 4 tabs + Stats/Debts/Categories sub-screens + Add sheet. No NavHost overhead for such a small graph. */
@@ -70,13 +74,14 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
     var inDebts by rememberSaveable { mutableStateOf(false) }
     var hideBalance by rememberSaveable { mutableStateOf(false) }
     var addType by rememberSaveable { mutableIntStateOf(-1) } // -1 = sheet closed
+    var editTxId by rememberSaveable { mutableLongStateOf(-1L) } // >= 0: editing that transaction in the same sheet
     val openSheets = remember { mutableIntStateOf(0) }
 
     val inSub = inCategories || inStats || inDebts
     // System back: close the add sheet, then the open sub-screen.
-    BackHandler(enabled = addType >= 0 || inSub) {
+    BackHandler(enabled = addType >= 0 || editTxId >= 0 || inSub) {
         when {
-            addType >= 0 -> addType = -1
+            addType >= 0 || editTxId >= 0 -> { addType = -1; editTxId = -1 }
             inCategories -> inCategories = false
             inStats -> inStats = false
             else -> inDebts = false
@@ -98,9 +103,9 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
             inDebts -> DebtsScreen(viewModel(factory = factory), onBack = { inDebts = false })
             tab == Tab.Home.ordinal -> HomeScreen(
                 homeState, hideBalance, { hideBalance = !hideBalance },
-                onSeeReports = { inStats = true }, onSeeTransactions = { tab = Tab.Transactions.ordinal },
+                onSeeReports = { inStats = true }, onSeeTransactions = { tab = Tab.Transactions.ordinal }, onEditTx = { editTxId = it },
             )
-            tab == Tab.Transactions.ordinal -> TransactionsScreen(viewModel(factory = factory), hideBalance)
+            tab == Tab.Transactions.ordinal -> TransactionsScreen(viewModel(factory = factory), hideBalance, onEdit = { editTxId = it })
             tab == Tab.Budgets.ordinal -> BudgetsScreen(viewModel(factory = factory))
             else -> SettingsScreen(
                 viewModel(factory = factory),
@@ -115,9 +120,9 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
-        if (addType >= 0) {
+        if (addType >= 0 || editTxId >= 0) {
             val addVm: AddTransactionViewModel = viewModel(factory = factory)
-            AddTransactionSheet(addVm, initialType = addType, onClose = { addType = -1 })
+            AddTransactionSheet(addVm, initialType = addType.coerceAtLeast(0), editId = editTxId, onClose = { addType = -1; editTxId = -1 })
         }
     }
     }
@@ -151,7 +156,11 @@ private fun NavItem(tab: Tab, selected: Int, onSelect: (Int) -> Unit, modifier: 
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        MIconView(tab.icon, tint)
-        Text(tab.label, color = tint, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        // Selected tab: tinted pill behind the icon (flat fill, no shadow) plus the primary colour.
+        Box(
+            Modifier.clip(RoundedCornerShape(14.dp)).background(if (on) c.primarySoft else Color.Transparent).padding(horizontal = 18.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center,
+        ) { MIconView(tab.icon, tint) }
+        Text(tab.label, color = tint, fontSize = 9.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold, maxLines = 1)
     }
 }

@@ -54,7 +54,7 @@ fun CategoryIcon(icon: MIcon, tone: Tone, size: Dp = 40.dp, round: Boolean = fal
             .clip(shape)
             .background(if (selected) c.primarySoft else tone.fg.copy(alpha = .13f)),
         contentAlignment = Alignment.Center,
-    ) { MIconView(icon, if (selected) c.primary else fg, size = 20.dp) }
+    ) { EmojiIcon(icon, if (selected) c.primary else fg, size = 20.dp) }
 }
 
 @Composable
@@ -78,7 +78,7 @@ fun ScreenHeader(title: String, subtitle: String? = null, onBack: (() -> Unit)? 
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) AppIconButton(MIcon.Back, "Quay lại", onBack, c.text)
+            if (onBack != null) AppIconButton(MIcon.Back, "Back", onBack, c.text)
             Column {
                 Text(title, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 if (subtitle != null) Text(subtitle, color = c.muted, fontSize = 12.sp)

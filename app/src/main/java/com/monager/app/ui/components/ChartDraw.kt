@@ -3,7 +3,10 @@ package com.monager.app.ui.components
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -59,16 +62,49 @@ internal fun DrawScope.drawSplitBar(hasData: Boolean, expenseFrac: Float, track:
     }
 }
 
-/** Home: expense per day of the month, values already normalised to 0..1 in the ViewModel. */
-internal fun DrawScope.drawDailyBars(values: List<Float>, expense: Color, track: Color) {
-    val slot = size.width / values.size
-    val barW = slot * 0.6f
-    val r = CornerRadius(barW / 2f)
-    for (i in values.indices) {
-        val v = values[i]
-        val h = (size.height * v).coerceAtLeast(if (v > 0f) 4.dp.toPx() else 2.dp.toPx())
-        drawRoundRect(if (v > 0f) expense else track, Offset(i * slot + (slot - barW) / 2f, size.height - h), Size(barW, h), r)
+/**
+ * Home trend: cumulative total per day of the month as an area line. [values] (0..1, one per day up to today) are
+ * normalised in the ViewModel; [days] is the length of the month so the line stops at today. The Paths are
+ * remembered by the caller and only reset here, so nothing is allocated per frame.
+ */
+internal fun DrawScope.drawTrendLine(
+    values: List<Float>, days: Int, gridLines: Int, path: Path, area: Path,
+    line: Color, fill: Brush, grid: Color, lineStroke: Stroke, dash: PathEffect,
+) {
+    val pad = 6.dp.toPx()
+    val h = size.height - pad * 2
+    // Evenly spaced round-number guide lines (labels are Text beside the canvas); the last one is the solid zero baseline.
+    val lines = gridLines.coerceAtLeast(2)
+    for (g in 0 until lines) {
+        val y = pad + h * g / (lines - 1).toFloat()
+        drawLine(grid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx(), pathEffect = if (g == lines - 1) null else dash)
     }
+    if (values.isEmpty()) return
+    val span = (days - 1).coerceAtLeast(1)
+    val bottom = pad + h
+    path.reset(); area.reset()
+    var px = 0f
+    var py = 0f
+    for (i in values.indices) {
+        val x = size.width * i / span
+        val y = pad + h * (1f - values[i])
+        if (i == 0) {
+            path.moveTo(x, y); area.moveTo(x, bottom); area.lineTo(x, y)
+        } else {
+            // Horizontal tangents at every point: smooth but monotone, so a cumulative curve never overshoots.
+            val dx = (x - px) / 2f
+            path.cubicTo(px + dx, py, x - dx, y, x, y)
+            area.cubicTo(px + dx, py, x - dx, y, x, y)
+        }
+        px = x; py = y
+    }
+    val lastX = size.width * (values.size - 1) / span
+    area.lineTo(lastX, bottom); area.close()
+    drawPath(area, fill)
+    drawPath(path, line, style = lineStroke)
+    val lastY = pad + h * (1f - values.last())
+    drawCircle(Color.White, 5.dp.toPx(), Offset(lastX, lastY))
+    drawCircle(line, 5.dp.toPx(), Offset(lastX, lastY), style = lineStroke)
 }
 
 /** Home: previous vs current period, two bars on tall tracks. */

@@ -1,5 +1,6 @@
 package com.monager.app.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,11 +20,11 @@ import com.monager.app.ui.theme.mc
 
 /** Flat, cheap list row (no per-item shadow). Callers put it inside one raised card or on the screen background. */
 @Composable
-fun TransactionRow(t: TxItem, showDate: Boolean, modifier: Modifier = Modifier) {
+fun TransactionRow(t: TxItem, showDate: Boolean, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val c = mc
     val income = t.amount > 0
     Row(
-        modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

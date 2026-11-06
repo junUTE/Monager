@@ -55,7 +55,7 @@ import com.monager.app.ui.components.raised
 import com.monager.app.ui.theme.mc
 import java.time.LocalDate
 
-private val Tabs = listOf("Cho vay", "Đi vay")
+private val Tabs = listOf("Lent", "Borrowed")
 private const val NONE = -1L
 private const val NEW = 0L
 
@@ -78,24 +78,24 @@ fun DebtsScreen(vm: DebtsViewModel, onBack: (() -> Unit)? = null) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "h") {
-                ScreenHeader("Khoản nợ", "Quản lý nợ & cho vay", onBack = onBack, right = {
-                    AppIconButton(MIcon.Plus, "Thêm khoản nợ", { selected = NEW; sheet = Sheet.Edit }, c.primary)
+                ScreenHeader("Debts", "Manage debts & loans", onBack = onBack, right = {
+                    AppIconButton(MIcon.Plus, "Add debt", { selected = NEW; sheet = Sheet.Edit }, c.primary)
                 })
             }
             item(key = "tabs") { SegmentedTabs(Tabs, tab, { tab = it; vm.setLend(it == 0) }) }
             item(key = "sum") {
                 Column(Modifier.fillMaxWidth().raised(radius = 18.dp, depth = 5.dp, brush = c.heroBrush).padding(18.dp)) {
-                    Text(if (lend) "Còn phải thu về" else "Còn phải trả", color = Color.White.copy(alpha = .88f), fontSize = 10.sp)
+                    Text(if (lend) "Left to collect" else "Left to repay", color = Color.White.copy(alpha = .88f), fontSize = 10.sp)
                     Text(Money.format(st.totalRemaining), color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 5.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         MIconView(MIcon.Users, Color.White.copy(alpha = .86f), size = 15.dp)
-                        Text("${st.openCount} khoản đang theo dõi", color = Color.White.copy(alpha = .86f), fontSize = 9.sp)
+                        Text("${st.openCount} open debts", color = Color.White.copy(alpha = .86f), fontSize = 9.sp)
                     }
                 }
             }
-            item(key = "t") { Box(Modifier.padding(top = 4.dp)) { SectionTitle("Danh sách khoản nợ") } }
+            item(key = "t") { Box(Modifier.padding(top = 4.dp)) { SectionTitle("Debt list") } }
             if (st.rows.isEmpty()) {
-                item(key = "empty") { Text(if (lend) "Chưa có khoản cho vay nào. Nhấn + để thêm." else "Chưa có khoản đi vay nào. Nhấn + để thêm.", color = c.muted, fontSize = 12.sp) }
+                item(key = "empty") { Text(if (lend) "No lent debts yet. Tap + to add one." else "No borrowed debts yet. Tap + to add one.", color = c.muted, fontSize = 12.sp) }
             }
             items(st.rows, key = { it.id }, contentType = { "debt" }) { d ->
                 DebtCard(d, lend, onPay = { selected = d.id; sheet = Sheet.Pay }, onDetail = { selected = d.id; sheet = Sheet.Detail })
@@ -137,9 +137,9 @@ private fun DebtCard(d: DebtRow, lend: Boolean, onPay: () -> Unit, onDetail: () 
             }
             Column(Modifier.weight(1f)) {
                 Text(d.name, color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Text("Tổng khoản: ${Money.format(d.total)}", color = c.muted, fontSize = 9.sp)
+                Text("Total: ${Money.format(d.total)}", color = c.muted, fontSize = 9.sp)
             }
-            if (d.settled) Text("Đã xong", color = c.income, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            if (d.settled) Text("Settled", color = c.income, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
         AppProgress(d.paid.toFloat() / d.total.coerceAtLeast(1), Modifier.padding(top = 10.dp), thumb = false)
         Row(
@@ -147,15 +147,15 @@ private fun DebtCard(d: DebtRow, lend: Boolean, onPay: () -> Unit, onDetail: () 
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Còn lại", color = c.muted, fontSize = 9.sp)
+                Text("Remaining", color = c.muted, fontSize = 9.sp)
                 Text(Money.format(d.remaining.coerceAtLeast(0)), color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
             Column(Modifier.weight(1f)) {
-                Text("Hạn ${if (lend) "thu" else "trả"}", color = c.muted, fontSize = 9.sp)
+                Text("Due ${if (lend) "for collection" else "for repayment"}", color = c.muted, fontSize = 9.sp)
                 Text(
                     when {
-                        d.dueMillis == null -> "Không có hạn"
-                        d.overdueDays > 0 -> "${DebtMath.formatDate(d.dueMillis)} · quá ${d.overdueDays} ngày"
+                        d.dueMillis == null -> "No due date"
+                        d.overdueDays > 0 -> "${DebtMath.formatDate(d.dueMillis)} · ${d.overdueDays} days overdue"
                         else -> DebtMath.formatDate(d.dueMillis)
                     },
                     color = if (d.overdueDays > 0) c.expense else c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
@@ -166,11 +166,11 @@ private fun DebtCard(d: DebtRow, lend: Boolean, onPay: () -> Unit, onDetail: () 
             RaisedBox(Modifier.weight(1f).height(36.dp).alpha(if (d.settled) .45f else 1f), radius = 10.dp, brush = c.heroBrush, onClick = { if (!d.settled) onPay() }) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     MIconView(MIcon.Check, Color.White, size = 16.dp)
-                    Text(if (lend) "Thu bớt" else "Trả bớt", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(if (lend) "Collect" else "Repay", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
             RaisedBox(Modifier.size(width = 76.dp, height = 36.dp), radius = 10.dp, onClick = onDetail) {
-                Text("Chi tiết", color = c.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("Details", color = c.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -193,25 +193,24 @@ private fun DebtEditSheet(
     val ok = name.isNotBlank() && amount > 0 && dueOk
 
     SimpleSheet(
-        title = if (existing == null) (if (lend) "Thêm khoản cho vay" else "Thêm khoản đi vay") else "Sửa khoản nợ",
+        title = if (existing == null) (if (lend) "Add lent debt" else "Add borrowed debt") else "Edit debt",
         onClose = onClose,
     ) {
-        Label("Tên người liên quan")
-        InsetField(name, { if (it.length <= 40) name = it }, "Ví dụ: Hoàng Nam")
-        Label("Số tiền")
-        InsetField(digits, { v -> if (v.length <= 12 && v.all { it.isDigit() }) digits = v }, "Ví dụ 5000000", numeric = true)
-        if (amount > 0) Text(Money.format(amount), color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
-        Label("Ngày hẹn (có thể bỏ trống)")
-        DateField(dueText, { dueText = it }, "Không có hạn", clearable = true)
-        Label("Ghi chú")
-        InsetField(note, { if (it.length <= 80) note = it }, "Không bắt buộc")
+        Label("Person's name")
+        InsetField(name, { if (it.length <= 40) name = it }, "e.g. John Smith", autoFocus = true)
+        Label("Amount")
+        InsetField(digits, { v -> if (v.length <= 12 && v.all { it.isDigit() }) digits = v }, "e.g. 5,000,000", money = true)
+        Label("Due date (optional)")
+        DateField(dueText, { dueText = it }, "No due date", clearable = true)
+        Label("Note")
+        InsetField(note, { if (it.length <= 80) note = it }, "Optional")
         error?.let { Text(it, color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp)) }
         RaisedBox(
             Modifier.fillMaxWidth().padding(top = 14.dp).height(44.dp).alpha(if (ok) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
             onClick = {
-                if (ok) onSave(name, amount, due?.let { TimeRanges.startOfDay(it) }, note) { error = "Tổng khoản không được nhỏ hơn số đã ${if (lend) "thu" else "trả"} (${Money.format(existing?.paid ?: 0)})." }
+                if (ok) onSave(name, amount, due?.let { TimeRanges.startOfDay(it) }, note) { error = "Total cannot be less than the amount already ${if (lend) "collected" else "repaid"} (${Money.format(existing?.paid ?: 0)})." }
             },
-        ) { Text("Lưu", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+        ) { Text("Save", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
     }
 }
 
@@ -224,14 +223,14 @@ private fun PaySheet(d: DebtRow, lend: Boolean, onPay: (amount: Long, record: Bo
     val amount = digits.toLongOrNull() ?: 0L
     val ok = amount in 1..d.remaining
 
-    SimpleSheet(if (lend) "Thu bớt từ ${d.name}" else "Trả bớt cho ${d.name}", "Còn lại ${Money.format(d.remaining)}", onClose) {
-        Label("Số tiền")
-        InsetField(digits, { v -> if (v.length <= 12 && v.all { it.isDigit() }) { digits = v; error = null } }, "Nhập số tiền", numeric = true)
+    SimpleSheet(if (lend) "Collect from ${d.name}" else "Repay ${d.name}", "Remaining ${Money.format(d.remaining)}", onClose) {
+        Label("Amount")
+        InsetField(digits, { v -> if (v.length <= 12 && v.all { it.isDigit() }) { digits = v; error = null } }, "Enter amount", autoFocus = true, money = true)
         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            QuickChip("Một nửa") { digits = (d.remaining / 2).coerceAtLeast(1).toString() }
-            QuickChip(if (lend) "Thu hết" else "Trả hết") { digits = d.remaining.toString() }
+            QuickChip("Half") { digits = (d.remaining / 2).coerceAtLeast(1).toString() }
+            QuickChip(if (lend) "Collect all" else "Repay all") { digits = d.remaining.toString() }
         }
-        if (amount > d.remaining) Text("Vượt quá số còn lại", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+        if (amount > d.remaining) Text("Exceeds remaining amount", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         Row(
             Modifier.fillMaxWidth().padding(top = 12.dp).clickable { record = !record },
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -240,13 +239,13 @@ private fun PaySheet(d: DebtRow, lend: Boolean, onPay: (amount: Long, record: Bo
                 Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(if (record) c.primary else c.surface2),
                 contentAlignment = Alignment.Center,
             ) { if (record) MIconView(MIcon.Check, c.onPrimary, size = 14.dp) }
-            Text(if (lend) "Ghi vào giao dịch thu nhập (ví đầu tiên)" else "Ghi vào giao dịch chi tiêu (ví đầu tiên)", color = c.text, fontSize = 11.sp)
+            Text(if (lend) "Record as income transaction (first wallet)" else "Record as expense transaction (first wallet)", color = c.text, fontSize = 11.sp)
         }
         error?.let { Text(it, color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp)) }
         RaisedBox(
             Modifier.fillMaxWidth().padding(top = 14.dp).height(44.dp).alpha(if (ok) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
-            onClick = { if (ok) onPay(amount, record) { error = "Không ghi được khoản này." } },
-        ) { Text("Xác nhận", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            onClick = { if (ok) onPay(amount, record) { error = "Could not record this payment." } },
+        ) { Text("Confirm", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
     }
 }
 
@@ -255,24 +254,24 @@ private fun DetailSheet(d: DebtRow, vm: DebtsViewModel, onEdit: () -> Unit, onDe
     val c = mc
     val payments by remember(d.id) { vm.payments(d.id) }.collectAsStateWithLifecycle(emptyList())
     var confirm by remember { mutableStateOf(false) }
-    SimpleSheet(d.name, "Tổng ${Money.format(d.total)} · đã ${Money.format(d.paid)} · còn ${Money.format(d.remaining.coerceAtLeast(0))}", onClose) {
+    SimpleSheet(d.name, "Total ${Money.format(d.total)} · paid ${Money.format(d.paid)} · left ${Money.format(d.remaining.coerceAtLeast(0))}", onClose) {
         if (d.note.isNotBlank()) Text(d.note, color = c.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
-        Text("Lịch sử", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-        if (payments.isEmpty()) Text("Chưa có lần thanh toán nào.", color = c.muted, fontSize = 12.sp)
+        Text("History", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+        if (payments.isEmpty()) Text("No payments yet.", color = c.muted, fontSize = 12.sp)
         payments.take(8).forEach { p ->
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(DebtMath.formatDate(p.timestamp), color = c.muted, fontSize = 12.sp)
                 Text(Money.format(p.amount), color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-        if (payments.size > 8) Text("… và ${payments.size - 8} lần khác", color = c.muted, fontSize = 10.sp)
-        if (confirm) Text("Xóa khoản nợ và lịch sử thanh toán? Các giao dịch đã ghi trước đó vẫn được giữ.", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
+        if (payments.size > 8) Text("… and ${payments.size - 8} more", color = c.muted, fontSize = 10.sp)
+        if (confirm) Text("Delete this debt and its payment history? Transactions already recorded are kept.", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
         Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RaisedBox(Modifier.size(width = 52.dp, height = 44.dp), radius = 13.dp, onClick = { if (confirm) onDelete() else confirm = true }) {
                 MIconView(MIcon.Delete, c.expense)
             }
             RaisedBox(Modifier.weight(1f).height(44.dp), radius = 13.dp, brush = c.heroBrush, onClick = onEdit) {
-                Text("Sửa khoản nợ", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Edit debt", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

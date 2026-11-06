@@ -15,7 +15,7 @@ import com.monager.app.ui.analytics.SliceUi
 import com.monager.app.ui.components.drawBudgetRing
 import com.monager.app.ui.components.drawCashFlowBars
 import com.monager.app.ui.components.drawCompareBars
-import com.monager.app.ui.components.drawDailyBars
+import com.monager.app.ui.components.drawTrendLine
 import com.monager.app.ui.components.drawDonut
 import com.monager.app.ui.components.drawLimitSlider
 import com.monager.app.ui.components.drawProgress
@@ -45,7 +45,11 @@ class DrawAllocationTest {
     private val palette = listOf(Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Gray)
     private val slices = List(5) { SliceUi("c$it", 20, 100, 72f) }
     private val bars = List(12) { BarUi("t$it", 100, 50, .8f, .4f) }
-    private val daily = List(31) { (it % 7) / 7f }
+    private val trend = List(18) { it / 17f }
+    private val trendFill = androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Red, Color.Transparent), startY = 0f, endY = 600f)
+    private val trendPath = androidx.compose.ui.graphics.Path()
+    private val trendArea = androidx.compose.ui.graphics.Path()
+    private val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
     private val stroke = Stroke(40f)
     private val roundStroke = Stroke(40f, cap = StrokeCap.Round)
     private val radius = CornerRadius(11f)
@@ -78,7 +82,7 @@ class DrawAllocationTest {
     @Test fun donutEmpty() = assertCheap("donut empty", bytesPerDraw { drawDonut(emptyList(), palette, Color.LightGray, 40f, stroke) })
     @Test fun cashFlowBars() = assertCheap("cash-flow bars", bytesPerDraw { drawCashFlowBars(bars, Color.Green, Color.Red, Color.Gray, 8f, radius) })
     @Test fun splitBar() = assertCheap("home split bar", bytesPerDraw { drawSplitBar(true, .4f, Color.Gray, Color.Green, Color.Red) })
-    @Test fun dailyBars() = assertCheap("home daily bars", bytesPerDraw { drawDailyBars(daily, Color.Red, Color.Gray) })
+    @Test fun trendLine() = assertCheap("home trend line", bytesPerDraw { drawTrendLine(trend, 30, 4, trendPath, trendArea, Color.Red, trendFill, Color.LightGray, stroke, dash) })
     @Test fun compareBars() = assertCheap("home compare bars", bytesPerDraw { drawCompareBars(.5f, 1f, true, true, Color.Gray, Color.Green) })
     @Test fun budgetRing() = assertCheap("budget ring", bytesPerDraw { drawBudgetRing(.7f, 40f, stroke, roundStroke, Color.Gray, Color.Green) })
     @Test fun progressWithThumb() = assertCheap("progress + thumb", bytesPerDraw { drawProgress(.6f, Color.Gray, Color.Green, true) })

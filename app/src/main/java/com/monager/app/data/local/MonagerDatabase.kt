@@ -19,6 +19,7 @@ import com.monager.app.data.local.entity.Converters
 import com.monager.app.data.local.entity.DebtEntity
 import com.monager.app.data.local.entity.DebtPaymentEntity
 import com.monager.app.data.local.entity.TransactionEntity
+import com.monager.app.data.local.entity.TxType
 import com.monager.app.data.local.entity.VaultEntity
 import com.monager.app.data.local.entity.WalletEntity
 
@@ -50,32 +51,62 @@ abstract class MonagerDatabase : RoomDatabase() {
     }
 }
 
+/** Starter data: used when the database is first created and when the user resets everything. */
+object DefaultData {
+    val wallets = listOf(WalletEntity(id = 1, name = "Cash", initialBalance = 0, iconKey = "Wallet", sortOrder = 0))
+    val vaults = listOf(VaultEntity(id = 1, name = "Emergency fund", target = 50_000_000, iconKey = "Sparkles"))
+
+    /** A parent category plus its subcategories as "Name|IconKey". Names must not contain a single quote (seeded via raw SQL). */
+    private class Cat(val id: Long, val name: String, val type: TxType, val icon: String, val tone: String, vararg val subs: String)
+
+    private val tree = listOf(
+        Cat(1, "Food", TxType.EXPENSE, "Utensils", "Mint", "Eating out|Noodles", "Snacks|Popcorn", "Daily food|Basket", "Beverages|Coffee"),
+        Cat(2, "Vehicle", TxType.EXPENSE, "Car", "Blue", "Fuel|Fuel", "Maintenance|Settings", "Repairs|Wrench", "Parking|Parking", "Bus & train|Bus"),
+        Cat(3, "Beauty", TxType.EXPENSE, "Lipstick", "Purple", "Haircut|Scissors", "Cosmetics|Lipstick", "Makeup|Sparkles", "Accessories|Gem"),
+        Cat(4, "Household", TxType.EXPENSE, "House", "Peach", "Appliances|Tv", "Furniture|Bed", "Kitchen|CookingPot", "Toiletries|SprayBottle", "Supplies|Cart"),
+        Cat(5, "Sport", TxType.EXPENSE, "Ball", "Sage", "Football|Ball", "Swimming|Waves", "Billiards|Billiard"),
+        Cat(6, "Service fees", TxType.EXPENSE, "Receipt", "Yellow", "Rent|Home", "Phone bill|Phone"),
+        Cat(7, "Apparel", TxType.EXPENSE, "Shirt", "Peach", "Clothing|Shirt", "Fashion|Dress", "Shoes|Shoe", "Laundry|Soap"),
+        Cat(8, "Health", TxType.EXPENSE, "Heart", "Purple", "Hospital|Hospital", "Medicine|Pill"),
+        Cat(9, "Education", TxType.EXPENSE, "Graduation", "Blue", "Schooling|Graduation", "Textbooks|Book", "Academy|Users", "Materials|FileCheck"),
+        Cat(10, "Technology", TxType.EXPENSE, "Laptop", "Blue", "Phone|Phone", "Laptop|Laptop", "Other tech|Gamepad"),
+        Cat(11, "Investment", TxType.EXPENSE, "TrendingUp", "Sage"),
+        Cat(12, "Gift", TxType.EXPENSE, "Gift", "Yellow"),
+        Cat(13, "Other", TxType.EXPENSE, "More", "Gray"),
+        Cat(21, "Salary", TxType.INCOME, "Briefcase", "Sage"),
+        Cat(22, "Allowance", TxType.INCOME, "Banknote", "Mint"),
+        Cat(23, "Petty cash", TxType.INCOME, "Coins", "Yellow"),
+        Cat(24, "Bonus", TxType.INCOME, "Trophy", "Peach"),
+        Cat(25, "Dividends", TxType.INCOME, "PiggyBank", "Sage"),
+        Cat(26, "Stock sales", TxType.INCOME, "Candles", "Blue"),
+        Cat(27, "Gift received", TxType.INCOME, "Gift", "Yellow"),
+    )
+
+    /** Parents first (self-referencing foreign key), then subcategories inheriting type/tone from their parent. */
+    val categories: List<CategoryEntity> = run {
+        val parents = tree.mapIndexed { i, c ->
+            CategoryEntity(id = c.id, name = c.name, type = c.type, parentId = null, iconKey = c.icon, toneKey = c.tone, sortOrder = i)
+        }
+        parents + tree.flatMap { c ->
+            c.subs.mapIndexed { i, s ->
+                val (name, icon) = s.split("|")
+                CategoryEntity(id = c.id * 100 + i + 1, name = name, type = c.type, parentId = c.id, iconKey = icon, toneKey = c.tone, sortOrder = i)
+            }
+        }
+    }
+}
+
 /** Runs once, when the database file is first created. Plain SQL: no DAO/thread needed. */
 object SeedCallback : RoomDatabase.Callback() {
     override fun onCreate(db: SupportSQLiteDatabase) {
-        db.execSQL("INSERT INTO wallets (id, name, initialBalance, iconKey, archived, sortOrder) VALUES (1, 'Tiền mặt', 0, 'Wallet', 0, 0)")
-        db.execSQL("INSERT INTO vaults (id, name, target, iconKey, archived) VALUES (1, 'Quỹ dự phòng', 50000000, 'Sparkles', 0)")
-        // id, name, type, parentId, iconKey, toneKey, sortOrder
-        val rows = listOf(
-            Triple(1, "Ăn uống", "EXPENSE|Utensils|Mint"), Triple(2, "Di chuyển", "EXPENSE|Car|Blue"),
-            Triple(3, "Mua sắm", "EXPENSE|ShoppingBag|Peach"), Triple(4, "Hóa đơn", "EXPENSE|Receipt|Yellow"),
-            Triple(5, "Sức khỏe", "EXPENSE|Heart|Purple"), Triple(6, "Khác", "EXPENSE|More|Gray"),
-            Triple(11, "Lương", "INCOME|Briefcase|Sage"), Triple(12, "Quà tặng", "INCOME|Gift|Yellow"),
-        )
-        rows.forEachIndexed { i, (id, name, meta) ->
-            val (type, icon, tone) = meta.split("|")
-            db.execSQL("INSERT INTO categories (id, name, type, parentId, iconKey, toneKey, sortOrder) VALUES ($id, '$name', '$type', NULL, '$icon', '$tone', $i)")
+        DefaultData.wallets.forEach {
+            db.execSQL("INSERT INTO wallets (id, name, initialBalance, iconKey, archived, sortOrder) VALUES (${it.id}, '${it.name}', ${it.initialBalance}, '${it.iconKey}', 0, ${it.sortOrder})")
         }
-        val subs = listOf(
-            Triple(101, 1, "Ăn sáng|Coffee"), Triple(102, 1, "Ăn trưa & tối|Utensils"), Triple(103, 1, "Cà phê|Coffee"),
-            Triple(104, 2, "Xăng xe|Car"), Triple(105, 2, "Taxi & Grab|Car"),
-            Triple(111, 11, "Lương chính|Briefcase"), Triple(112, 11, "Thưởng|Gift"),
-        )
-        val tones = mapOf(1 to ("EXPENSE" to "Mint"), 2 to ("EXPENSE" to "Blue"), 11 to ("INCOME" to "Sage"))
-        subs.forEachIndexed { i, (id, parent, meta) ->
-            val (name, icon) = meta.split("|")
-            val (type, tone) = tones.getValue(parent)
-            db.execSQL("INSERT INTO categories (id, name, type, parentId, iconKey, toneKey, sortOrder) VALUES ($id, '$name', '$type', $parent, '$icon', '$tone', $i)")
+        DefaultData.vaults.forEach {
+            db.execSQL("INSERT INTO vaults (id, name, target, iconKey, archived) VALUES (${it.id}, '${it.name}', ${it.target}, '${it.iconKey}', 0)")
+        }
+        DefaultData.categories.forEach {
+            db.execSQL("INSERT INTO categories (id, name, type, parentId, iconKey, toneKey, sortOrder) VALUES (${it.id}, '${it.name}', '${it.type.name}', ${it.parentId ?: "NULL"}, '${it.iconKey}', '${it.toneKey}', ${it.sortOrder})")
         }
     }
 }

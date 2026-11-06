@@ -14,14 +14,14 @@ import java.time.format.ResolverStyle
 
 /** Shared by CSV and Excel: one row per transaction. Pure functions, no Android or DB. */
 object TransactionTable {
-    val HEADER = listOf("Ngày", "Loại", "Số tiền", "Danh mục", "Danh mục con", "Ví", "Ví đến", "Quỹ", "Ghi chú")
+    val HEADER = listOf("Date", "Type", "Amount", "Category", "Subcategory", "Wallet", "To wallet", "Vault", "Note")
     const val AMOUNT_COLUMN = 2
 
     private val dateFmt = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm")
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
     fun label(type: TxType) = when (type) {
-        TxType.EXPENSE -> "Chi tiêu"; TxType.INCOME -> "Thu nhập"; TxType.SAVING -> "Tiết kiệm"; TxType.TRANSFER -> "Chuyển khoản"
+        TxType.EXPENSE -> "Expense"; TxType.INCOME -> "Income"; TxType.SAVING -> "Saving"; TxType.TRANSFER -> "Transfer"
     }
 
     /** [neutralize] true for CSV: text cells that look like formulas get an apostrophe prefix. */
@@ -86,7 +86,7 @@ object TransactionTable {
     class Columns(val date: Int, val type: Int, val amount: Int, val category: Int, val sub: Int, val wallet: Int, val toWallet: Int, val vault: Int, val note: Int)
 
     private val names = mapOf(
-        "date" to listOf("ngay", "date"), "type" to listOf("loai", "type"), "amount" to listOf("so tien", "amount"),
+        "date" to listOf("date", "ngay"), "type" to listOf("loai", "type"), "amount" to listOf("so tien", "amount"),
         "category" to listOf("danh muc", "category"), "sub" to listOf("danh muc con", "subcategory"),
         "wallet" to listOf("vi", "wallet"), "toWallet" to listOf("vi den", "to wallet"),
         "vault" to listOf("quy", "vault"), "note" to listOf("ghi chu", "note"),

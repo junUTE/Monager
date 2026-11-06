@@ -77,7 +77,7 @@ object XlsxCodec {
                 }
             }
         }
-        require(sheets.isNotEmpty()) { "Không tìm thấy bảng tính trong file Excel" }
+        require(sheets.isNotEmpty()) { "No worksheet found in the Excel file" }
         val shared = sharedXml?.let { parseShared(it) } ?: emptyList()
         return parseSheet(sheets["xl/worksheets/sheet1.xml"] ?: sheets.values.first(), shared)
     }
@@ -89,7 +89,7 @@ object XlsxCodec {
             val n = zip.read(chunk)
             if (n < 0) break
             buf.write(chunk, 0, n)
-            require(buf.size() <= MAX_ENTRY_BYTES) { "File Excel quá lớn" }
+            require(buf.size() <= MAX_ENTRY_BYTES) { "Excel file is too large" }
         }
         return buf.toByteArray()
     }

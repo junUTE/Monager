@@ -18,7 +18,7 @@ import java.util.zip.ZipOutputStream
 @Config(sdk = [34])
 class CodecTest {
     private val tricky = listOf(
-        listOf("Ngày", "Ghi chú"),
+        listOf("Date", "Note"),
         listOf("2026-11-03 09:15", "cà phê, \"đặc biệt\""),
         listOf("2026-11-03 10:00", "dòng 1\ndòng 2"),
         listOf("", "  khoảng trắng  "),
@@ -47,18 +47,18 @@ class CodecTest {
     @Test fun xlsxRoundTripWithSpecialCharacters() {
         val rows = listOf(
             TransactionTable.HEADER,
-            listOf("2026-11-03 09:15", "Chi tiêu", "45000", "Ăn uống", "Cà phê", "Tiền mặt", "", "", "<b>&\"'</b> ghi chú"),
-            listOf("2026-11-04 10:00", "Thu nhập", "18000000", "Lương", "", "Tiền mặt", "", "", ""),
+            listOf("2026-11-03 09:15", "Expense", "45000", "Food", "Coffee", "Cash", "", "", "<b>&\"'</b> note"),
+            listOf("2026-11-04 10:00", "Income", "18000000", "Salary", "", "Cash", "", "", ""),
         )
         val out = ByteArrayOutputStream()
-        XlsxCodec.write(rows, setOf(TransactionTable.AMOUNT_COLUMN), "Giao dịch", out)
+        XlsxCodec.write(rows, setOf(TransactionTable.AMOUNT_COLUMN), "Transactions", out)
         val back = XlsxCodec.read(ByteArrayInputStream(out.toByteArray()))
         assertEquals(rows.map { r -> r.map { it } }, back.map { r -> r + List(9 - r.size) { "" } })
     }
 
     @Test fun xlsxWritesAmountsAsNumbers() {
         val out = ByteArrayOutputStream()
-        XlsxCodec.write(listOf(listOf("Số tiền"), listOf("80000")), setOf(0), "S", out)
+        XlsxCodec.write(listOf(listOf("Amount"), listOf("80000")), setOf(0), "S", out)
         val sheet = java.util.zip.ZipInputStream(ByteArrayInputStream(out.toByteArray())).let { z ->
             generateSequence { z.nextEntry }.first { it.name == "xl/worksheets/sheet1.xml" }.let { z.readBytes().toString(Charsets.UTF_8) }
         }
@@ -80,13 +80,13 @@ class CodecTest {
             // shared strings written AFTER the sheet on purpose (zip order must not matter); second string has rich text + phonetic
             z.putNextEntry(ZipEntry("xl/sharedStrings.xml"))
             z.write(
-                ("""<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>Ngày</t></si>
-                <si><r><t>Số </t></r><r><t>tiền</t></r><rPh><t>furigana</t></rPh></si></sst>""").toByteArray(),
+                ("""<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>Date</t></si>
+                <si><r><t>Am</t></r><r><t>ount</t></r><rPh><t>furigana</t></rPh></si></sst>""").toByteArray(),
             )
             z.closeEntry()
         }
         val rows = XlsxCodec.read(ByteArrayInputStream(zip.toByteArray()))
-        assertEquals(listOf("Ngày", "", "Số tiền"), rows[0])
+        assertEquals(listOf("Date", "", "Amount"), rows[0])
         assertEquals(listOf("46000.5", "Chi", "80000"), rows[1])
     }
 
@@ -113,8 +113,8 @@ class CodecTest {
     }
 
     @Test fun typeParsingIgnoresCaseAndAccents() {
-        assertEquals(TxType.EXPENSE, TransactionTable.parseType("Chi tiêu")); assertEquals(TxType.EXPENSE, TransactionTable.parseType("CHI TIEU"))
-        assertEquals(TxType.INCOME, TransactionTable.parseType("thu nhập")); assertEquals(TxType.SAVING, TransactionTable.parseType("Tiết kiệm"))
+        assertEquals(TxType.EXPENSE, TransactionTable.parseType("Expense")); assertEquals(TxType.EXPENSE, TransactionTable.parseType("Chi tiêu")); // legacy Vietnamese export assertEquals(TxType.EXPENSE, TransactionTable.parseType("CHI TIEU"))
+        assertEquals(TxType.INCOME, TransactionTable.parseType("income")); assertEquals(TxType.SAVING, TransactionTable.parseType("Saving"))
         assertEquals(TxType.TRANSFER, TransactionTable.parseType("Transfer")); assertNull(TransactionTable.parseType("khác"))
     }
 
@@ -124,12 +124,12 @@ class CodecTest {
         assertEquals(TransactionTable.parseDate("2026-11-03")!!, TransactionTable.parseDate("03/11/2026")!!) // date-only -> 12:00
         val serial = TransactionTable.parseDate("46329.5")!! // 2026-11-03 12:00 in Excel's system
         assertEquals(TransactionTable.parseDate("2026-11-03 12:00"), serial)
-        assertNull(TransactionTable.parseDate("31/02/2026")); assertNull(TransactionTable.parseDate("hôm qua"))
+        assertNull(TransactionTable.parseDate("31/02/2026")); assertNull(TransactionTable.parseDate("yesterday"))
     }
 
     @Test fun headerDetectionToleratesReorderedColumns() {
-        val (cols, header) = TransactionTable.detectColumns(listOf("Số tiền", "Ngày", "Loại", "Ghi chú"))
+        val (cols, header) = TransactionTable.detectColumns(listOf("Amount", "Date", "Type", "Note"))
         assertTrue(header); assertEquals(0, cols.amount); assertEquals(1, cols.date); assertEquals(3, cols.note)
-        assertTrue(!TransactionTable.detectColumns(listOf("2026-11-03 09:00", "Chi tiêu", "5000")).second)
+        assertTrue(!TransactionTable.detectColumns(listOf("2026-11-03 09:00", "Expense", "5000")).second)
     }
 }

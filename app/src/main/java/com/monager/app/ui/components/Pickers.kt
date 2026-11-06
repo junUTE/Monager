@@ -41,8 +41,8 @@ fun DatePickerSheet(epochDay: Long, onPick: (Long) -> Unit, onDismiss: () -> Uni
     val state = rememberDatePickerState(initialSelectedDateMillis = epochDay * 86_400_000L)
     DatePickerDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { state.selectedDateMillis?.let { onPick(Math.floorDiv(it, 86_400_000L)) }; onDismiss() }) { Text("Chọn") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Hủy") } },
+        confirmButton = { TextButton(onClick = { state.selectedDateMillis?.let { onPick(Math.floorDiv(it, 86_400_000L)) }; onDismiss() }) { Text("Select") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     ) { DatePicker(state) }
 }
 
@@ -56,8 +56,8 @@ fun TimePickerSheet(minuteOfDay: Int, onPick: (Int) -> Unit, onDismiss: () -> Un
             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 TimePicker(state)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Hủy") }
-                    TextButton(onClick = { onPick(state.hour * 60 + state.minute); onDismiss() }) { Text("Chọn") }
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { onPick(state.hour * 60 + state.minute); onDismiss() }) { Text("Select") }
                 }
             }
         }
@@ -81,7 +81,7 @@ fun DateField(text: String, onChange: (String) -> Unit, placeholder: String, cle
         MIconView(MIcon.Calendar, c.primary, size = 18.dp)
         Text(if (text.isEmpty()) placeholder else text, color = if (text.isEmpty()) c.muted else c.text, fontSize = 14.sp, modifier = Modifier.weight(1f))
         if (clearable && text.isNotEmpty()) {
-            Text("Xóa", color = c.expense, fontSize = 12.sp, modifier = Modifier.clickable { onChange("") }.padding(6.dp))
+            Text("Clear", color = c.expense, fontSize = 12.sp, modifier = Modifier.clickable { onChange("") }.padding(6.dp))
         }
     }
     if (open) {

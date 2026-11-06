@@ -29,10 +29,10 @@ import com.monager.app.ui.components.TransactionRow
 import com.monager.app.ui.components.raised
 import com.monager.app.ui.theme.mc
 
-private val Tabs = listOf("Tháng trước", "Tháng này", "Tương lai")
+private val Tabs = listOf("Last month", "This month", "Upcoming")
 
 @Composable
-fun TransactionsScreen(vm: TransactionsViewModel, hideBalance: Boolean) {
+fun TransactionsScreen(vm: TransactionsViewModel, hideBalance: Boolean, onEdit: (Long) -> Unit) {
     val c = mc
     val state by vm.state.collectAsStateWithLifecycle()
     val selected by vm.selected.collectAsStateWithLifecycle()
@@ -44,7 +44,7 @@ fun TransactionsScreen(vm: TransactionsViewModel, hideBalance: Boolean) {
         ) {
             item(key = "balance", contentType = "balance") {
                 Column(Modifier.fillMaxWidth().padding(bottom = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Số dư", color = c.muted, fontSize = 12.sp)
+                    Text("Balance", color = c.muted, fontSize = 12.sp)
                     Text(
                         if (hideBalance) "••••••••" else Money.format(state.balance),
                         color = c.text, fontSize = 24.sp, fontWeight = FontWeight.Bold,
@@ -58,7 +58,7 @@ fun TransactionsScreen(vm: TransactionsViewModel, hideBalance: Boolean) {
                 item(key = "empty", contentType = "empty") {
                     Column(Modifier.fillMaxWidth().padding(top = 80.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         MIconView(MIcon.Receipt, c.muted.copy(alpha = .6f), size = 56.dp)
-                        Text("Chưa có giao dịch", color = c.muted, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+                        Text("No transactions yet", color = c.muted, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
                     }
                 }
             }
@@ -69,7 +69,7 @@ fun TransactionsScreen(vm: TransactionsViewModel, hideBalance: Boolean) {
                 item(key = "g_${selected}_${g.label}", contentType = "group") {
                     // One raised card per day group: a single cheap shadow instead of one per row.
                     Column(Modifier.fillMaxWidth().raised(radius = 16.dp, depth = 3.dp)) {
-                        g.items.forEach { TransactionRow(it, showDate = false) }
+                        g.items.forEach { TransactionRow(it, showDate = false, onClick = { onEdit(it.id) }) }
                     }
                 }
             }

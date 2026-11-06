@@ -51,14 +51,20 @@ data class HomeState(
     val monthIncome: Long = 0,
     val month: PeriodSpend = PeriodSpend(),
     val week: PeriodSpend = PeriodSpend(),
-    /** Expense per day of the current month, normalised to 0..1 (precomputed so the chart only draws). */
-    val dailyExpense: List<Float> = emptyList(),
+    /** Cumulative expense / income per day of the current month up to today, normalised to 0..1 (precomputed so the chart only draws). */
+    val trendExpense: TrendUi = TrendUi(),
+    val trendIncome: TrendUi = TrendUi(),
+    val monthDays: Int = 30,
     val recent: List<TxItem> = emptyList(),
 )
 
+/** Cumulative curve scaled to a round axis: [values] are 0..1 of the axis top, [labels] run top -> bottom (e.g. 300k, 200k, 100k, 0). */
+@Immutable
+data class TrendUi(val values: List<Float> = emptyList(), val labels: List<String> = emptyList())
+
 internal fun TxRow.toItem(today: LocalDate): TxItem {
     val income = type == TxType.INCOME
-    val title = categoryName ?: vaultName?.let { "Tiết kiệm" } ?: if (type == TxType.TRANSFER) "Chuyển khoản" else "Khác"
+    val title = categoryName ?: vaultName?.let { "Savings" } ?: if (type == TxType.TRANSFER) "Transfer" else "Other"
     val sub = note.ifBlank { parentName ?: vaultName.orEmpty() }
     return TxItem(
         id = id,
@@ -88,11 +94,20 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
             PeriodSpend(a, b, t)
         }
 
-    private fun daily(month: YearMonth, r: MillisRange): Flow<List<Float>> = c.transactions.daily(r.from, r.to).map { rows ->
-        val sums = LongArray(month.lengthOfMonth())
-        rows.forEach { if (it.type == TxType.EXPENSE) sums[it.day.substring(8).toInt() - 1] += it.total }
-        val max = sums.maxOrNull()?.takeIf { it > 0 }
-        if (max == null) emptyList() else sums.map { it.toFloat() / max }
+    /** Cumulative per-day curve for one type, cut at today, scaled so the final total is 1.0; empty when nothing was booked. */
+    private fun cumulative(rows: List<com.monager.app.data.local.dao.DayTotal>, type: TxType, upToDay: Int): TrendUi {
+        val sums = LongArray(upToDay)
+        rows.forEach { if (it.type == type) it.day.substring(8).toInt().let { d -> if (d <= upToDay) sums[d - 1] += it.total } }
+        for (i in 1 until upToDay) sums[i] += sums[i - 1]
+        val max = sums.last().takeIf { it > 0 } ?: return TrendUi()
+        val step = com.monager.app.core.TrendAxis.step(max)
+        val n = com.monager.app.core.TrendAxis.steps(max, step)
+        val top = n * step
+        return TrendUi(sums.map { it.toFloat() / top }, (n downTo 0).map { com.monager.app.core.TrendAxis.label(it * step) })
+    }
+
+    private fun trend(today: LocalDate, r: MillisRange): Flow<Pair<TrendUi, TrendUi>> = c.transactions.daily(r.from, r.to).map { rows ->
+        cumulative(rows, TxType.EXPENSE, today.dayOfMonth) to cumulative(rows, TxType.INCOME, today.dayOfMonth)
     }
 
     /** All windows (this week/month) are derived from today, so they roll over when the date changes while the app lives on. */
@@ -107,10 +122,10 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
                 period(monthRange, TimeRanges.month(month.minusMonths(1))),
                 period(days(weekStart, weekStart.plusDays(7)), days(weekStart.minusDays(7), weekStart)),
             ) { m, w -> m to w },
-            daily(month, monthRange),
+            trend(today, monthRange),
             c.transactions.recent(5),
-        ) { balance, income, periods, dailyExpense, recent ->
-            HomeState(true, balance, income, periods.first, periods.second, dailyExpense, recent.map { it.toItem(today) })
+        ) { balance, income, periods, trend, recent ->
+            HomeState(true, balance, income, periods.first, periods.second, trend.first, trend.second, month.lengthOfMonth(), recent.map { it.toItem(today) })
         }
     }
 
@@ -121,7 +136,7 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
 }
 
-/** "Giao dịch" tab: one time window at a time (last month / this month / future), grouped by day. */
+/** "Transactions" tab: one time window at a time (last month / this month / future), grouped by day. */
 @Immutable
 data class TxGroup(val label: String, val items: List<TxItem>)
 
@@ -175,6 +190,20 @@ class AddTransactionViewModel(private val c: AppContainer) : ViewModel() {
             onDone()
         }
     }
+
+    /** The transaction being edited plus its category (to split parent/child); null when it no longer exists. */
+    suspend fun load(id: Long): Pair<TransactionEntity, CategoryEntity?>? {
+        val tx = c.transactions.get(id) ?: return null
+        return tx to tx.categoryId?.let { c.categories.get(it) }
+    }
+
+    fun update(tx: TransactionEntity, onDone: () -> Unit) {
+        viewModelScope.launch { c.transactions.update(tx); onDone() }
+    }
+
+    fun delete(tx: TransactionEntity, onDone: () -> Unit) {
+        viewModelScope.launch { c.transactions.delete(tx); onDone() }
+    }
 }
 
 class CategoriesViewModel(private val c: AppContainer) : ViewModel() {
@@ -227,6 +256,8 @@ data class VaultRow(val id: Long, val name: String, val iconKey: String, val tar
 data class BudgetsState(
     val overall: BudgetRow? = null,
     val rows: List<BudgetRow> = emptyList(),
+    /** Unlabeled remainder of the overall budget ("Other"): overall minus the sub-budgets; null without an overall budget. */
+    val other: BudgetRow? = null,
     val vaults: List<VaultRow> = emptyList(),
     /** Expense parents that do not have a budget yet this month (choices for "add budget"). */
     val available: List<CategoryEntity> = emptyList(),
@@ -251,10 +282,13 @@ class BudgetsViewModel(private val c: AppContainer) : ViewModel() {
                 BudgetRow(b.id, cat.id, cat.name, MIcon.fromKey(cat.iconKey), Tone.fromKey(cat.toneKey), b.limitAmount, b.spent)
             }
             val overall = budgets.firstOrNull { it.categoryId == null }
-                ?.let { BudgetRow(it.id, null, "Tổng tháng", MIcon.Wallet, Tone.Sage, it.limitAmount, it.spent) }
+                ?.let { BudgetRow(it.id, null, "Monthly total", MIcon.Wallet, Tone.Sage, it.limitAmount, it.spent) }
             val used = rows.mapNotNull { it.categoryId }.toSet()
+            val other = overall?.let {
+                BudgetRow(-3L, null, "Other", MIcon.Wallet, Tone.Gray, (it.limit - rows.sumOf { r -> r.limit }).coerceAtLeast(0), (it.spent - rows.sumOf { r -> r.spent }).coerceAtLeast(0))
+            }
             BudgetsState(
-                overall, rows,
+                overall, rows, other,
                 vaults.map { VaultRow(it.vault.id, it.vault.name, it.vault.iconKey, it.vault.target, it.saved) },
                 tree.map { it.parent }.filter { it.id !in used },
                 previousCount,
@@ -277,12 +311,15 @@ class BudgetsViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.vaults.delete(id); onDone() }
     }
 
-    fun removeBudget(id: Long, onDone: () -> Unit) {
-        viewModelScope.launch { c.budgets.remove(id); onDone() }
+    fun removeBudget(id: Long, isOverall: Boolean, onDone: () -> Unit) {
+        viewModelScope.launch {
+            if (isOverall) c.budgets.removeMonth(TimeRanges.monthKey(YearMonth.from(c.today.value))) else c.budgets.remove(id)
+            onDone()
+        }
     }
 
-    fun saveVault(id: Long, name: String, target: Long, onDone: () -> Unit) {
-        viewModelScope.launch { c.vaults.save(VaultEntity(id = id, name = name, target = target)); onDone() }
+    fun saveVault(id: Long, name: String, target: Long, iconKey: String, onDone: () -> Unit) {
+        viewModelScope.launch { c.vaults.save(VaultEntity(id = id, name = name, target = target, iconKey = iconKey)); onDone() }
     }
 }
 

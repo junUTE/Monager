@@ -48,7 +48,7 @@ import com.monager.app.ui.components.Tone
 import com.monager.app.ui.components.raised
 import com.monager.app.ui.theme.mc
 
-private val Tabs = listOf("Chi tiêu", "Thu nhập")
+private val Tabs = listOf("Expense", "Income")
 private const val NONE = -1L
 private const val NEW = 0L
 
@@ -71,15 +71,15 @@ fun CategoriesScreen(vm: CategoriesViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item(key = "h") {
-                ScreenHeader("Danh mục", "Sắp xếp và tùy chỉnh", onBack = onBack, right = {
-                    AppIconButton(MIcon.Plus, "Thêm danh mục", { newParent = NONE; editId = NEW }, c.primary)
+                ScreenHeader("Categories", "Arrange and customize", onBack = onBack, right = {
+                    AppIconButton(MIcon.Plus, "Add category", { newParent = NONE; editId = NEW }, c.primary)
                 })
             }
             item(key = "tabs") {
                 SegmentedTabs(Tabs, tab, { tab = it; expanded = NONE; vm.setType(if (it == 0) TxType.EXPENSE else TxType.INCOME) })
             }
             item(key = "hint") {
-                Text("Mở danh mục để thêm danh mục con. Chạm ✎ để sửa, đổi thứ tự hoặc xóa.", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(vertical = 4.dp))
+                Text("Open a category to add sub-categories. Tap ✎ to edit, reorder or delete.", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(vertical = 4.dp))
             }
             items(tree, key = { it.parent.id }, contentType = { "cat" }) { node ->
                 CategoryGroup(
@@ -98,7 +98,7 @@ fun CategoriesScreen(vm: CategoriesViewModel, onBack: () -> Unit) {
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     MIconView(MIcon.Plus, c.primary, size = 18.dp)
-                    Text("  Thêm danh mục", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("  Add category", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -131,27 +131,27 @@ private fun CategoryGroup(node: CategoryNode, open: Boolean, onToggle: () -> Uni
             CategoryIcon(MIcon.fromKey(row.iconKey), Tone.fromKey(row.toneKey), size = 36.dp)
             Text(row.name, color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             MIconView(MIcon.ChevronRight, c.muted, Modifier.graphicsLayer { rotationZ = if (open) 90f else 0f }, 17.dp)
-            AppIconButton(MIcon.Edit, "Sửa ${row.name}", { onEdit(row.id) }, c.muted)
+            AppIconButton(MIcon.Edit, "Edit ${row.name}", { onEdit(row.id) }, c.muted)
         }
         AnimatedVisibility(open) {
             Column {
                 node.children.forEach { sub ->
                     Row(
-                        Modifier.fillMaxWidth().height(42.dp).padding(start = 47.dp, end = 4.dp),
+                        Modifier.fillMaxWidth().height(44.dp).padding(start = 33.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(9.dp),
                     ) {
-                        Box(Modifier.size(6.dp).clip(CircleShape).background(c.primary))
+                        CategoryIcon(MIcon.fromKey(sub.iconKey), Tone.fromKey(sub.toneKey), size = 28.dp)
                         Text(sub.name, color = c.text, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                        AppIconButton(MIcon.Edit, "Sửa ${sub.name}", { onEdit(sub.id) }, c.muted)
+                        AppIconButton(MIcon.Edit, "Edit ${sub.name}", { onEdit(sub.id) }, c.muted)
                     }
                 }
                 Row(
-                    Modifier.fillMaxWidth().height(40.dp).clickable(onClick = onAddChild).padding(start = 47.dp),
+                    Modifier.fillMaxWidth().height(40.dp).clickable(onClick = onAddChild).padding(start = 33.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     MIconView(MIcon.Plus, c.primary, size = 16.dp)
-                    Text("Thêm danh mục con", color = c.primary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Add sub-category", color = c.primary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

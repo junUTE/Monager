@@ -1,6 +1,7 @@
 package com.monager.app.data.backup
 
 import androidx.room.withTransaction
+import com.monager.app.data.local.DefaultData
 import com.monager.app.data.local.MonagerDatabase
 import com.monager.app.data.local.entity.CategoryEntity
 import com.monager.app.data.local.entity.TransactionEntity
@@ -41,7 +42,7 @@ class BackupRepository(private val db: MonagerDatabase) {
 
     suspend fun exportXlsx(out: OutputStream) = withContext(Dispatchers.IO) {
         val rows = TransactionTable.toRows(dao.exportRows(), neutralize = false)
-        XlsxCodec.write(rows, setOf(TransactionTable.AMOUNT_COLUMN), "Giao dịch", out)
+        XlsxCodec.write(rows, setOf(TransactionTable.AMOUNT_COLUMN), "Transactions", out)
     }
 
     // ---------------- import ----------------
@@ -86,7 +87,7 @@ class BackupRepository(private val db: MonagerDatabase) {
                 if (c.parentId == null) parents.putIfAbsent(c.type to normalize(c.name), c.id) else children.putIfAbsent(c.parentId to normalize(c.name), c.id)
             }
             var created = 0
-            if (wallets.isEmpty()) wallets[normalize("Tiền mặt")] = db.walletDao().upsert(WalletEntity(name = "Tiền mặt"))
+            if (wallets.isEmpty()) wallets[normalize("Cash")] = db.walletDao().upsert(WalletEntity(name = "Cash"))
             val defaultWallet = dao.wallets().let { l -> (l.firstOrNull { !it.archived } ?: l.first()).id }
 
             suspend fun wallet(name: String): Long =
@@ -107,14 +108,14 @@ class BackupRepository(private val db: MonagerDatabase) {
             val pending = ArrayList<Pending>()
             val errors = ArrayList<String>()
             var errorCount = 0
-            fun fail(line: Int, why: String) { errorCount++; if (errors.size < 5) errors.add("Dòng $line: $why") }
+            fun fail(line: Int, why: String) { errorCount++; if (errors.size < 5) errors.add("Line $line: $why") }
 
             rows.forEachIndexed { idx, row ->
                 if (idx == 0 && hasHeader) return@forEachIndexed
                 val line = idx + 1
-                val ts = TransactionTable.parseDate(cell(row, cols.date)) ?: return@forEachIndexed fail(line, "ngày không hợp lệ \"${cell(row, cols.date)}\"")
-                val type = TransactionTable.parseType(cell(row, cols.type)) ?: return@forEachIndexed fail(line, "loại không hợp lệ \"${cell(row, cols.type)}\"")
-                val amount = TransactionTable.parseAmount(cell(row, cols.amount)) ?: return@forEachIndexed fail(line, "số tiền không hợp lệ \"${cell(row, cols.amount)}\"")
+                val ts = TransactionTable.parseDate(cell(row, cols.date)) ?: return@forEachIndexed fail(line, "invalid date \"${cell(row, cols.date)}\"")
+                val type = TransactionTable.parseType(cell(row, cols.type)) ?: return@forEachIndexed fail(line, "invalid type \"${cell(row, cols.type)}\"")
+                val amount = TransactionTable.parseAmount(cell(row, cols.amount)) ?: return@forEachIndexed fail(line, "invalid amount \"${cell(row, cols.amount)}\"")
                 val note = CsvCodec.restoreFormula(cell(row, cols.note))
                 val catName = CsvCodec.restoreFormula(cell(row, cols.category))
                 val subName = CsvCodec.restoreFormula(cell(row, cols.sub))
@@ -126,16 +127,16 @@ class BackupRepository(private val db: MonagerDatabase) {
                     }
                     TxType.SAVING -> {
                         val vName = cell(row, cols.vault)
-                        if (vName.isBlank()) return@forEachIndexed fail(line, "thiếu tên quỹ tiết kiệm")
+                        if (vName.isBlank()) return@forEachIndexed fail(line, "missing savings vault name")
                         val vid = vaults.getOrPut(normalize(vName)) { db.vaultDao().upsert(VaultEntity(name = vName.trim(), target = 0)) }
                         pending.add(Pending(ts, type, amount, wallet(cell(row, cols.wallet)), null, vid, null, note))
                     }
                     TxType.TRANSFER -> {
                         val from = wallet(cell(row, cols.wallet))
                         val toName = cell(row, cols.toWallet)
-                        if (toName.isBlank()) return@forEachIndexed fail(line, "thiếu ví đến")
+                        if (toName.isBlank()) return@forEachIndexed fail(line, "missing destination wallet")
                         val to = wallet(toName)
-                        if (to == from) return@forEachIndexed fail(line, "ví đi và ví đến trùng nhau")
+                        if (to == from) return@forEachIndexed fail(line, "source and destination wallets are the same")
                         pending.add(Pending(ts, type, amount, from, null, null, to, note))
                     }
                 }
@@ -177,6 +178,17 @@ class BackupRepository(private val db: MonagerDatabase) {
             dao.insertDebts(snapshot.debts)
             dao.insertDebtPayments(snapshot.debtPayments)
             RestoreResult(snapshot.transactions.size, snapshot.categories.size, snapshot.wallets.size, snapshot.debts.size)
+        }
+    }
+
+    /** Wipes every table and restores the starter wallet/categories/fund, atomically (failure leaves data untouched). */
+    suspend fun resetAll() = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            dao.clearDebtPayments(); dao.clearDebts(); dao.clearBudgets(); dao.clearTransactions()
+            dao.clearVaults(); dao.clearCategories(); dao.clearWallets()
+            dao.insertWallets(DefaultData.wallets)
+            dao.insertCategories(DefaultData.categories)
+            dao.insertVaults(DefaultData.vaults)
         }
     }
 

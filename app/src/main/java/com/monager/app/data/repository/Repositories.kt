@@ -31,15 +31,26 @@ class TransactionRepository(private val db: MonagerDatabase) {
     fun buckets(from: Long, to: Long, bucketMs: Long) = dao.observeBuckets(from, to, bucketMs)
     fun daily(from: Long, to: Long) = dao.observeDaily(from, to)
 
-    /** Validates the invariants the UI relies on, then inserts. */
-    suspend fun add(tx: TransactionEntity): Long {
+    suspend fun get(id: Long): TransactionEntity? = dao.get(id)
+
+    private fun validate(tx: TransactionEntity) {
         require(tx.amount > 0) { "amount must be positive" }
         when (tx.type) {
             TxType.EXPENSE, TxType.INCOME -> require(tx.categoryId != null) { "category required" }
             TxType.SAVING -> require(tx.vaultId != null) { "vault required" }
             TxType.TRANSFER -> require(tx.toWalletId != null && tx.toWalletId != tx.walletId) { "different target wallet required" }
         }
+    }
+
+    /** Validates the invariants the UI relies on, then inserts. */
+    suspend fun add(tx: TransactionEntity): Long {
+        validate(tx)
         return dao.insert(tx)
+    }
+
+    suspend fun update(tx: TransactionEntity) {
+        validate(tx)
+        dao.update(tx)
     }
 
     suspend fun delete(tx: TransactionEntity) = dao.delete(tx)
@@ -54,6 +65,8 @@ class CategoryRepository(private val db: MonagerDatabase) {
         val kids = all.filter { it.parentId != null }.groupBy { it.parentId }
         all.filter { it.parentId == null }.map { CategoryNode(it, kids[it.id].orEmpty()) }
     }
+
+    suspend fun get(id: Long): CategoryEntity? = dao.get(id)
 
     suspend fun add(name: String, type: TxType, parentId: Long?, iconKey: String, toneKey: String): Long =
         db.withTransaction {
@@ -115,6 +128,9 @@ class BudgetRepository(private val db: MonagerDatabase) {
 
     suspend fun remove(id: Long) = dao.delete(id)
 
+    /** Deleting the overall budget of a month also deletes its sub-budgets (they only make sense under a total). */
+    suspend fun removeMonth(month: Int) = db.withTransaction { dao.listMonth(month).forEach { dao.delete(it.id) } }
+
     fun count(month: Int): Flow<Int> = dao.observeCount(month)
 
     /**
@@ -162,7 +178,7 @@ class DebtRepository(private val db: MonagerDatabase) {
             txDao.insert(
                 TransactionEntity(
                     walletId = it, type = if (debt.iLent) TxType.INCOME else TxType.EXPENSE, amount = amount,
-                    note = (if (debt.iLent) "Thu nợ: " else "Trả nợ: ") + debt.personName, timestamp = now,
+                    note = (if (debt.iLent) "Debt collected: " else "Debt repaid: ") + debt.personName, timestamp = now,
                 ),
             )
         }

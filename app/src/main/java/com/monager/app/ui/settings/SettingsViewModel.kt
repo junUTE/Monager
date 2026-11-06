@@ -31,6 +31,7 @@ data class SettingsUi(
     val message: String? = null,
     /** Set when a JSON backup was picked: restoring REPLACES everything, so the user must confirm. */
     val pendingRestore: RestoreResult? = null,
+    val confirmReset: Boolean = false,
     val transactions: Int = 0,
     val dbSizeKb: Long = 0,
 )
@@ -58,8 +59,8 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun export(kind: FileKind, uri: Uri) = run("Không xuất được file") {
-        val out = c.contentResolver.openOutputStream(uri, "wt") ?: error("Không mở được file để ghi")
+    fun export(kind: FileKind, uri: Uri) = run("Could not export file") {
+        val out = c.contentResolver.openOutputStream(uri, "wt") ?: error("Could not open file for writing")
         out.use {
             when (kind) {
                 FileKind.JSON -> c.backup.exportJson(it)
@@ -67,14 +68,14 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
                 FileKind.XLSX -> c.backup.exportXlsx(it)
             }
         }
-        "Đã xuất xong. Bạn có thể mở file bằng ${if (kind == FileKind.JSON) "chính Monager (Nhập dữ liệu)" else "Excel, Google Sheets hoặc LibreOffice"}."
+        "Export complete. You can open the file with ${if (kind == FileKind.JSON) "Monager itself (Import data)" else "Excel, Google Sheets or LibreOffice"}."
     }
 
     /** Called with the file the user picked in the system file picker. */
-    fun onFilePicked(uri: Uri) = run("Không đọc được file") {
+    fun onFilePicked(uri: Uri) = run("Could not read file") {
         val size = c.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { if (it.moveToFirst()) it.getLong(0) else -1L } ?: -1L
-        if (size > MAX_IMPORT_BYTES) return@run "File quá lớn (tối đa 25 MB)."
-        val input = BufferedInputStream(c.contentResolver.openInputStream(uri) ?: error("Không mở được file"))
+        if (size > MAX_IMPORT_BYTES) return@run "File is too large (max 25 MB)."
+        val input = BufferedInputStream(c.contentResolver.openInputStream(uri) ?: error("Could not open file"))
         input.use { stream ->
             when (val kind = c.backup.detect(stream)) {
                 FileKind.JSON -> {
@@ -86,12 +87,12 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
                 else -> {
                     val result = c.backup.importTable(c.backup.readTable(kind, stream))
                     buildString {
-                        append("Đã nhập ${result.imported} giao dịch")
-                        if (result.duplicates > 0) append(", bỏ qua ${result.duplicates} dòng đã có")
-                        if (result.createdCategories > 0) append(", tạo ${result.createdCategories} danh mục mới")
+                        append("Imported ${result.imported} transactions")
+                        if (result.duplicates > 0) append(", skipped ${result.duplicates} existing rows")
+                        if (result.createdCategories > 0) append(", created ${result.createdCategories} new categories")
                         append('.')
                         if (result.errors > 0) {
-                            append("\n${result.errors} dòng lỗi bị bỏ qua:")
+                            append("\n${result.errors} rows with errors were skipped:")
                             result.firstErrors.forEach { append("\n• $it") }
                             if (result.errors > result.firstErrors.size) append("\n• …")
                         }
@@ -105,9 +106,20 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
         val snap = pendingSnapshot ?: return
         _ui.update { it.copy(pendingRestore = null) }
         pendingSnapshot = null
-        run("Không khôi phục được") {
+        run("Could not restore") {
             val r = c.backup.restore(snap)
-            "Đã khôi phục ${r.transactions} giao dịch, ${r.categories} danh mục, ${r.wallets} ví, ${r.debts} khoản nợ."
+            "Restored ${r.transactions} transactions, ${r.categories} categories, ${r.wallets} wallets, ${r.debts} debts."
+        }
+    }
+
+    fun requestReset() = _ui.update { it.copy(confirmReset = true) }
+    fun cancelReset() = _ui.update { it.copy(confirmReset = false) }
+
+    fun confirmReset() {
+        _ui.update { it.copy(confirmReset = false) }
+        run("Could not reset") {
+            c.backup.resetAll()
+            "All data deleted and default categories restored."
         }
     }
 

@@ -18,7 +18,7 @@ data class PeriodRange(val kind: PeriodKind, val from: LocalDate, val toInclusiv
 
 /** Pure date math for the Analytics screen (no Android, easy to test). offset 0 = current, -1 = previous, ... */
 object Periods {
-    private val weekDayLabels = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
+    private val weekDayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
     fun of(kind: PeriodKind, offset: Int, today: LocalDate, custom: Pair<LocalDate, LocalDate>? = null): PeriodRange = when (kind) {
         PeriodKind.WEEK -> {
@@ -32,14 +32,14 @@ object Periods {
             val end = ym.atEndOfMonth()
             val buckets = (0 until 5).mapNotNull { i ->
                 val s = start.plusDays(i * 7L)
-                if (s.isAfter(end)) null else Bucket(s, minOf(s.plusDays(6), end), "Tuần ${i + 1}")
+                if (s.isAfter(end)) null else Bucket(s, minOf(s.plusDays(6), end), "Week ${i + 1}")
             }
-            PeriodRange(kind, start, end, "Tháng ${ym.monthValue}/${ym.year}", buckets)
+            PeriodRange(kind, start, end, "Month ${ym.monthValue}/${ym.year}", buckets)
         }
         PeriodKind.YEAR -> {
             val year = today.year + offset
             val buckets = (1..12).map { m -> YearMonth.of(year, m).let { Bucket(it.atDay(1), it.atEndOfMonth(), "T$m") } }
-            PeriodRange(kind, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), "Năm $year", buckets)
+            PeriodRange(kind, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), "Year $year", buckets)
         }
         PeriodKind.CUSTOM -> {
             val (a, b) = custom ?: (today.minusDays(29) to today)

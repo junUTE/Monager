@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.monager.app.data.local.entity.CategoryEntity
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.MIcon
+import com.monager.app.ui.components.EmojiIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
 import com.monager.app.ui.components.Tone
@@ -82,10 +83,10 @@ fun CategoryEditSheet(
             Box(Modifier.align(Alignment.CenterHorizontally).size(36.dp, 4.dp).clip(RoundedCornerShape(5.dp)).background(c.muted.copy(alpha = .5f)))
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(if (existing == null) "Thêm danh mục" else "Sửa danh mục", color = c.text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    if (parentName != null) Text("Thuộc: $parentName", color = c.muted, fontSize = 10.sp)
+                    Text(if (existing == null) "Add category" else "Edit category", color = c.text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    if (parentName != null) Text("Under: $parentName", color = c.muted, fontSize = 10.sp)
                 }
-                AppIconButton(MIcon.Close, "Đóng", onClose, c.text)
+                AppIconButton(MIcon.Close, "Close", onClose, c.text)
             }
 
             Row(
@@ -93,12 +94,12 @@ fun CategoryEditSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.weight(1f)) {
-                    if (name.isEmpty()) Text("Tên danh mục", color = c.muted, fontSize = 13.sp)
+                    if (name.isEmpty()) Text("Category name", color = c.muted, fontSize = 13.sp)
                     BasicTextField(name, { if (it.length <= 30) name = it }, singleLine = true, textStyle = TextStyle(color = c.text, fontSize = 14.sp), cursorBrush = SolidColor(c.primary))
                 }
             }
 
-            Text("Màu", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+            Text("Color", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tone.entries.forEach { t ->
                     val on = t.name == tone
@@ -110,7 +111,7 @@ fun CategoryEditSheet(
                 }
             }
 
-            Text("Biểu tượng", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+            Text("Icon", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
             // 48 icons: scroll inside a fixed-height area so the sheet never outgrows small screens.
             Column(Modifier.fillMaxWidth().heightIn(max = 190.dp).verticalScroll(rememberScrollState())) {
             MIcon.picker.chunked(6).forEach { rowIcons ->
@@ -123,8 +124,10 @@ fun CategoryEditSheet(
                                 .border(if (sel) 1.5.dp else 1.dp, if (sel) c.primary else c.line, RoundedCornerShape(12.dp))
                                 .clickable { icon = ic.name },
                             contentAlignment = Alignment.Center,
-                        ) { MIconView(ic, if (sel) c.primary else c.muted) }
+                        ) { EmojiIcon(ic, if (sel) c.primary else c.muted) }
                     }
+                    // Keep the last row's cells the same size as the others.
+                    repeat(6 - rowIcons.size) { Box(Modifier.weight(1f)) }
                 }
             }
             }
@@ -133,12 +136,12 @@ fun CategoryEditSheet(
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     RaisedBox(Modifier.weight(1f).height(38.dp), radius = 10.dp, onClick = { onMove(-1) }) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            MIconView(MIcon.ArrowUp, c.text, size = 16.dp); Text("Lên", color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            MIconView(MIcon.ArrowUp, c.text, size = 16.dp); Text("Up", color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                     RaisedBox(Modifier.weight(1f).height(38.dp), radius = 10.dp, onClick = { onMove(1) }) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            MIconView(MIcon.ArrowDown, c.text, size = 16.dp); Text("Xuống", color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            MIconView(MIcon.ArrowDown, c.text, size = 16.dp); Text("Down", color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -149,13 +152,13 @@ fun CategoryEditSheet(
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (onDelete != null) {
                     RaisedBox(Modifier.size(width = 52.dp, height = 44.dp), radius = 13.dp, onClick = {
-                        onDelete { ok -> if (!ok) error = "Danh mục đã có giao dịch nên không thể xóa." }
+                        onDelete { ok -> if (!ok) error = "This category has transactions, so it cannot be deleted." }
                     }) { MIconView(MIcon.Delete, c.expense) }
                 }
                 RaisedBox(
                     Modifier.weight(1f).height(44.dp).alpha(if (valid) 1f else .5f), radius = 13.dp, brush = c.heroBrush,
                     onClick = { if (valid) onSave(name.trim(), icon, tone) },
-                ) { Text("Lưu", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                ) { Text("Save", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }

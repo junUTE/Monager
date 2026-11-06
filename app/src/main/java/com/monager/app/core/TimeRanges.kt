@@ -21,12 +21,12 @@ object TimeRanges {
 
     fun toDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
 
-    /** "Hôm nay", "Hôm qua", otherwise dd/MM. */
+    /** "Today", "Yesterday", otherwise dd/MM. */
     fun label(millis: Long, today: LocalDate = LocalDate.now(zone)): String {
         val d = toDate(millis)
         return when (d) {
-            today -> "Hôm nay"
-            today.minusDays(1) -> "Hôm qua"
+            today -> "Today"
+            today.minusDays(1) -> "Yesterday"
             else -> "%02d/%02d".format(d.dayOfMonth, d.monthValue)
         }
     }

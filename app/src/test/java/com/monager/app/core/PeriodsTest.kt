@@ -13,8 +13,8 @@ class PeriodsTest {
         assertEquals(LocalDate.of(2026, 11, 2), r.from)
         assertEquals(LocalDate.of(2026, 11, 8), r.toInclusive)
         assertEquals(7, r.buckets.size)
-        assertEquals("T2", r.buckets.first().label)
-        assertEquals("CN", r.buckets.last().label)
+        assertEquals("Mon", r.buckets.first().label)
+        assertEquals("Sun", r.buckets.last().label)
     }
 
     @Test fun previousWeekOffset() = assertEquals(LocalDate.of(2026, 10, 26), Periods.of(PeriodKind.WEEK, -1, today).from)
@@ -66,9 +66,9 @@ class PeriodsTest {
             income = mapOf(LocalDate.of(2026, 11, 1) to 100L, LocalDate.of(2026, 11, 8) to 50L),
             expense = mapOf(LocalDate.of(2026, 11, 7) to 30L, LocalDate.of(2026, 11, 30) to 5L),
         )
-        assertEquals(Triple("Tuần 1", 100L, 30L), out[0])
-        assertEquals(Triple("Tuần 2", 50L, 0L), out[1])
-        assertEquals(Triple("Tuần 5", 0L, 5L), out[4])
+        assertEquals(Triple("Week 1", 100L, 30L), out[0])
+        assertEquals(Triple("Week 2", 50L, 0L), out[1])
+        assertEquals(Triple("Week 5", 0L, 5L), out[4])
     }
 
     @Test fun millisRangeCoversWholeLastDay() {

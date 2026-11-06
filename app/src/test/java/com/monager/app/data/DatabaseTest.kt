@@ -55,13 +55,13 @@ class DatabaseTest {
 
     @Test fun seedCreatesWalletAndTwoLevelCategories() = runBlocking {
         val tree = cats.tree(TxType.EXPENSE).first()
-        assertEquals(6, tree.size)
-        assertEquals(listOf("Ăn sáng", "Ăn trưa & tối", "Cà phê"), tree.first { it.parent.id == 1L }.children.map { it.name })
+        assertEquals(13, tree.size)
+        assertEquals(listOf("Eating out", "Snacks", "Daily food", "Beverages"), tree.first { it.parent.id == 1L }.children.map { it.name })
         assertEquals(1, db.walletDao().observeActive().first().size)
     }
 
     @Test fun balanceIsIncomeMinusExpenseMinusSavings() = runBlocking {
-        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 11, timestamp = 2_000))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 21, timestamp = 2_000))
         tx.add(expense(300, 1))
         tx.add(TransactionEntity(walletId = 1, type = TxType.SAVING, amount = 200, vaultId = 1, timestamp = 3_000))
         assertEquals(500L, db.transactionDao().observeTotalBalance().first())
@@ -69,7 +69,7 @@ class DatabaseTest {
     }
 
     @Test fun balanceUntilIgnoresFutureTransactions() = runBlocking {
-        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 11, timestamp = 2_000))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 21, timestamp = 2_000))
         tx.add(expense(300, 1, ts = 9_000)) // planned: after the cut-off
         assertEquals(1_000L, db.transactionDao().observeBalanceUntil(5_000).first())
         assertEquals(700L, db.transactionDao().observeBalanceUntil(10_000).first())
@@ -82,7 +82,7 @@ class DatabaseTest {
     }
 
     @Test fun deletingAVaultRemovesItsDepositsAndReturnsTheMoney() = runBlocking {
-        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 11, timestamp = 2_000))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 21, timestamp = 2_000))
         tx.add(TransactionEntity(walletId = 1, type = TxType.SAVING, amount = 200, vaultId = 1, timestamp = 3_000))
         assertEquals(800L, db.transactionDao().observeTotalBalance().first())
         VaultRepository(db).delete(1)
@@ -117,8 +117,8 @@ class DatabaseTest {
     @Test fun recentRowsAreJoinedAndOrdered() = runBlocking {
         tx.add(expense(100, 101, 3_000)); tx.add(expense(10, 2, 4_000))
         val rows = tx.recent(10).first()
-        assertEquals(listOf("Di chuyển", "Ăn sáng"), rows.map { it.categoryName })
-        assertEquals("Ăn uống", rows[1].parentName)
+        assertEquals(listOf("Vehicle", "Eating out"), rows.map { it.categoryName })
+        assertEquals("Food", rows[1].parentName)
     }
 
     @Test fun addValidatesInvariants() {
@@ -137,7 +137,7 @@ class DatabaseTest {
 
     @Test fun transfersDoNotChangeTotalBalance() = runBlocking {
         val w2 = db.walletDao().upsert(WalletEntity(name = "Ngân hàng"))
-        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 11, timestamp = 2_000))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 1_000, categoryId = 21, timestamp = 2_000))
         tx.add(TransactionEntity(walletId = 1, type = TxType.TRANSFER, amount = 400, toWalletId = w2, timestamp = 3_000))
         assertEquals(1_000L, db.transactionDao().observeTotalBalance().first())
     }
@@ -165,8 +165,8 @@ class DatabaseTest {
     @Test fun usedCategoryCannotBeDeletedButUnusedCan() = runBlocking {
         tx.add(expense(100, 101))
         assertFalse(cats.deleteIfUnused(1))   // child 101 is used
-        assertTrue(cats.deleteIfUnused(6))    // "Khác" unused
-        assertNull(db.categoryDao().get(6))
+        assertTrue(cats.deleteIfUnused(13))    // "Other" unused
+        assertNull(db.categoryDao().get(13))
     }
 
     @Test fun reorderPersistsSortOrder() = runBlocking {
@@ -205,9 +205,9 @@ class DatabaseTest {
         val id = debts.add(DebtEntity(personName = "Nam", amount = 1_000, iLent = true, createdAt = 1))
         debts.pay(id, 600, 2_000, walletId = null)
         assertFalse(debts.edit(id, "Nam", 500, null, ""))
-        assertTrue(debts.edit(id, "  Nam B ", 600, 9_000, " ghi chú "))
+        assertTrue(debts.edit(id, "  Nam B ", 600, 9_000, " note "))
         val d = debts.debts(true).first().single()
-        assertEquals("Nam B", d.debt.personName); assertEquals(600L, d.debt.amount); assertEquals("ghi chú", d.debt.note)
+        assertEquals("Nam B", d.debt.personName); assertEquals(600L, d.debt.amount); assertEquals("note", d.debt.note)
     }
 
     @Test fun deletingDebtRemovesPaymentsButKeepsLinkedTransactions() = runBlocking {
@@ -230,7 +230,7 @@ class DatabaseTest {
         val d1 = java.time.LocalDate.of(2026, 11, 3)
         val noon = { d: java.time.LocalDate -> com.monager.app.core.TimeRanges.startOfDay(d) + 12 * 3_600_000L }
         tx.add(expense(100, 1, noon(d1))); tx.add(expense(40, 2, noon(d1) + 1_000))
-        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 900, categoryId = 11, timestamp = noon(d1)))
+        tx.add(TransactionEntity(walletId = 1, type = TxType.INCOME, amount = 900, categoryId = 21, timestamp = noon(d1)))
         tx.add(expense(7, 1, noon(d1.plusDays(1))))
         tx.add(TransactionEntity(walletId = 1, type = TxType.SAVING, amount = 500, vaultId = 1, timestamp = noon(d1))) // not income/expense
         val range = com.monager.app.core.Periods.of(com.monager.app.core.PeriodKind.CUSTOM, 0, d1, d1 to d1.plusDays(1)).millis
@@ -244,5 +244,19 @@ class DatabaseTest {
     @Test fun insertedCategoryHasNoDuplicateConstraintIssues() = runBlocking {
         val id = db.categoryDao().insert(CategoryEntity(name = "X", type = TxType.EXPENSE, iconKey = "More", toneKey = "Gray"))
         assertTrue(id > 0)
+    }
+
+    @Test fun resetAllWipesUserDataAndRestoresDefaults() = runBlocking {
+        tx.add(expense(300, 1))
+        budgets.set(202611, null, 4_000_000)
+        cats.add("Thú cưng", TxType.EXPENSE, null, "Heart", "Peach")
+        com.monager.app.data.backup.BackupRepository(db).resetAll()
+        assertEquals(0, db.backupDao().counts().transactions)
+        assertEquals(0, budgets.count(202611).first())
+        val tree = cats.tree(TxType.EXPENSE).first()
+        assertEquals(13, tree.size) // custom category gone, defaults back
+        assertEquals(listOf("Eating out", "Snacks", "Daily food", "Beverages"), tree.first { it.parent.id == 1L }.children.map { it.name })
+        assertEquals(1, db.walletDao().observeActive().first().size)
+        assertEquals(1, db.vaultDao().observeWithSaved().first().size)
     }
 }

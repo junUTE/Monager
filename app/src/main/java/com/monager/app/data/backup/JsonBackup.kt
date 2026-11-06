@@ -77,9 +77,9 @@ object JsonBackup {
                 }
             }
             r.endObject()
-            if (app != APP) throw BackupFormatException("Đây không phải file sao lưu của Monager")
-            if (version != VERSION.toLong()) throw BackupFormatException("Phiên bản sao lưu $version chưa được hỗ trợ")
-            fun rows(name: String) = lists[name] ?: throw BackupFormatException("Thiếu phần \"$name\" trong file sao lưu")
+            if (app != APP) throw BackupFormatException("This is not a Monager backup file")
+            if (version != VERSION.toLong()) throw BackupFormatException("Backup version $version is not supported")
+            fun rows(name: String) = lists[name] ?: throw BackupFormatException("Missing section \"$name\" in backup file")
             return Snapshot(
                 wallets = rows("wallets").map { WalletEntity(it.l("id"), it.s("name"), it.l("initialBalance"), it.s("iconKey"), it.b("archived"), it.l("sortOrder").toInt()) },
                 categories = rows("categories").map { CategoryEntity(it.l("id"), it.s("name"), it.type(), it.ln("parentId"), it.s("iconKey"), it.s("toneKey"), it.l("sortOrder").toInt()) },
@@ -92,7 +92,7 @@ object JsonBackup {
         } catch (e: BackupFormatException) {
             throw e
         } catch (e: Exception) { // malformed JSON, wrong types, IO
-            throw BackupFormatException("File sao lưu bị hỏng hoặc không đọc được (${e.message ?: e.javaClass.simpleName})")
+            throw BackupFormatException("Backup file is corrupted or unreadable (${e.message ?: e.javaClass.simpleName})")
         }
     }
 
@@ -119,10 +119,10 @@ object JsonBackup {
         return list
     }
 
-    private fun Map<String, Any?>.l(k: String): Long = (this[k] as? Long) ?: throw BackupFormatException("Thiếu hoặc sai kiểu số: $k")
+    private fun Map<String, Any?>.l(k: String): Long = (this[k] as? Long) ?: throw BackupFormatException("Missing or non-numeric value: $k")
     private fun Map<String, Any?>.ln(k: String): Long? = this[k] as? Long
-    private fun Map<String, Any?>.s(k: String): String = (this[k] as? String) ?: throw BackupFormatException("Thiếu hoặc sai kiểu chữ: $k")
-    private fun Map<String, Any?>.b(k: String): Boolean = (this[k] as? Boolean) ?: throw BackupFormatException("Thiếu hoặc sai kiểu đúng/sai: $k")
+    private fun Map<String, Any?>.s(k: String): String = (this[k] as? String) ?: throw BackupFormatException("Missing or non-text value: $k")
+    private fun Map<String, Any?>.b(k: String): Boolean = (this[k] as? Boolean) ?: throw BackupFormatException("Missing or non-boolean value: $k")
     private fun Map<String, Any?>.type(): TxType =
-        TxType.entries.firstOrNull { it.name == this["type"] } ?: throw BackupFormatException("Loại không hợp lệ: ${this["type"]}")
+        TxType.entries.firstOrNull { it.name == this["type"] } ?: throw BackupFormatException("Invalid type: ${this["type"]}")
 }

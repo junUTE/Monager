@@ -56,7 +56,7 @@ object PerfTools {
         val rnd = Random(42) // fixed seed: identical data on every run
         val now = System.currentTimeMillis()
         val day = 86_400_000L
-        val notes = listOf("Cà phê", "Ăn trưa", "Grab", "Siêu thị", "Điện nước", "Tiền nhà", "Lương", "Thưởng", "")
+        val notes = listOf("Coffee", "Lunch", "Ride", "Groceries", "Utilities", "Rent", "Salary", "Bonus", "")
         repeat(1500) { i ->
             val isIncome = i % 12 == 0
             c.transactions.add(
