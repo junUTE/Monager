@@ -75,6 +75,21 @@ class DatabaseTest {
         assertEquals(700L, db.transactionDao().observeBalanceUntil(10_000).first())
     }
 
+    @Test fun rowsFilteredByGroupChildAndSort() = runBlocking {
+        val food = cats.tree(TxType.EXPENSE).first().first { it.parent.id == 1L }
+        val child = food.children.first().id
+        val other = cats.tree(TxType.EXPENSE).first().first { it.parent.id != 1L }.parent.id
+        tx.add(expense(100, 1, ts = 2_000)); tx.add(expense(500, child, ts = 3_000)); tx.add(expense(300, child, ts = 4_000))
+        tx.add(expense(999, other, ts = 4_500))
+        // Group = parent + its children, newest first; other groups and the window are respected.
+        assertEquals(listOf(300L, 500L, 100L), tx.rowsFiltered(from, to, 1L).first().map { it.amount })
+        assertEquals(listOf(500L, 300L, 100L), tx.rowsFiltered(from, to, 1L, byAmount = true).first().map { it.amount })
+        assertEquals(listOf(300L, 500L), tx.rowsFiltered(from, to, 1L, categoryId = child).first().map { it.amount })
+        assertEquals(listOf(100L), tx.rowsFiltered(from, 2_500, 1L).first().map { it.amount })
+        // Per exact category inside the group, largest first.
+        assertEquals(listOf(child to 800L, 1L to 100L), tx.totalsInGroup(1L, from, to).first().map { it.groupId to it.total })
+    }
+
     @Test fun rowsBetweenReturnsOnlyTheWindowNewestFirst() = runBlocking {
         tx.add(expense(1, 1, ts = 1_000)); tx.add(expense(2, 1, ts = 5_000)); tx.add(expense(3, 1, ts = 9_000))
         assertEquals(listOf(2L, 1L), tx.rowsBetween(500, 6_000).first().map { it.amount })

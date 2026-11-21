@@ -1,5 +1,6 @@
 package com.monager.app.ui.budgets
 
+import com.monager.app.ui.components.tactile
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -58,6 +59,12 @@ import com.monager.app.ui.components.ScreenHeader
 import com.monager.app.ui.components.SectionTitle
 import com.monager.app.ui.components.SimpleSheet
 import com.monager.app.ui.components.raised
+import com.monager.app.ui.components.pressScale
+import com.monager.app.ui.components.rememberPress
+import com.monager.app.ui.components.rememberReveal
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.style.TextOverflow
 import com.monager.app.ui.theme.mc
 import java.time.LocalDate
 
@@ -89,7 +96,7 @@ fun BudgetsScreen(vm: BudgetsViewModel) {
                 ScreenHeader("Budgets & Savings", "Month ${today.monthValue}, ${today.year}")
             }
             item(key = "overview") {
-                Overview(st.overall) {
+                Overview(st.overall, today.lengthOfMonth() - today.dayOfMonth + 1) {
                     if (st.overall == null) { editBudgetId = NONE; backToDetail = false; budgetSheet = true } else detailSheet = true
                 }
             }
@@ -101,14 +108,14 @@ fun BudgetsScreen(vm: BudgetsViewModel) {
                 item(key = "empty1") { Text(if (st.overall == null) "Set the monthly total budget first, then split it by category." else "Tap the total budget to split it by category.", color = c.muted, fontSize = 12.sp) }
             }
             items(st.rows, key = { it.id }, contentType = { "budget" }) { row ->
-                BudgetCard(row) { editBudgetId = row.id; backToDetail = false; budgetSheet = true }
+                BudgetCard(row, today.lengthOfMonth() - today.dayOfMonth + 1) { editBudgetId = row.id; backToDetail = false; budgetSheet = true }
             }
             val other = st.other
             if (other != null && st.rows.isNotEmpty()) {
-                item(key = "other", contentType = "budget") { BudgetCard(other) { detailSheet = true } }
+                item(key = "other", contentType = "budget") { BudgetCard(other, today.lengthOfMonth() - today.dayOfMonth + 1) { detailSheet = true } }
             }
             item(key = "t2") {
-                Box(Modifier.padding(top = 6.dp).clickable { editVaultId = NEW_VAULT; vaultSheet = true }) { SectionTitle("Savings goals", "+ Add") }
+                Box(Modifier.padding(top = 6.dp)) { SectionTitle("Savings goals", "+ Add", onAction = { editVaultId = NEW_VAULT; vaultSheet = true }) }
             }
             if (st.vaults.isEmpty()) {
                 item(key = "empty2") { Text("No savings goals yet.", color = c.muted, fontSize = 12.sp) }
@@ -159,53 +166,120 @@ private fun RolloverCard(count: Int, onClick: () -> Unit) {
     }
 }
 
+/** How far a budget is used: drives colours and the status text everywhere on this screen. */
+private enum class Level { Ok, Near, Over }
+
+private fun level(b: BudgetRow): Level = when {
+    b.limit > 0 && b.spent > b.limit -> Level.Over
+    b.pct >= 80 -> Level.Near
+    else -> Level.Ok
+}
+
+// Ring/pill colours on the dark emerald hero (fixed: the hero brush is the same in light and dark theme).
+private val HeroMint = Color(0xFFB8E0C2)
+private val HeroAmber = Color(0xFFFFD27A)
+private val HeroCoral = Color(0xFFFFA39A)
+private val HeroRed = Color(0xFFFF6B5E)
+
+/**
+ * Monthly total: ring + status. Over 100% the ring keeps going as a second, deeper-red lap (capped at 200%) so
+ * "how much over" stays readable instead of a ring that is simply full.
+ */
 @Composable
-private fun Overview(overall: BudgetRow?, onClick: () -> Unit) {
-    val frac = if (overall == null || overall.limit <= 0) 0f else (overall.spent.toFloat() / overall.limit).coerceIn(0f, 1f)
-    Row(
-        Modifier.fillMaxWidth().raised(radius = 18.dp, depth = 5.dp, brush = mc.heroBrush).clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
+private fun Overview(overall: BudgetRow?, daysLeft: Int, onClick: () -> Unit) {
+    val frac = if (overall == null || overall.limit <= 0) 0f else overall.spent.toFloat() / overall.limit
+    val lvl = overall?.let { level(it) } ?: Level.Ok
+    val press = rememberPress()
+    val shape = remember { RoundedCornerShape(20.dp) }
+    Column(
+        Modifier.fillMaxWidth().pressScale(press, .98f).raised(radius = 20.dp, depth = 5.dp, brush = mc.heroBrush, press = press)
+            .clip(shape).clickable(press.source, LocalIndication.current, onClick = onClick).padding(18.dp),
     ) {
-        Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
-            // Stroke objects are created once (not per draw); geometry below is value-class math only.
-            val w = with(androidx.compose.ui.platform.LocalDensity.current) { 16.dp.toPx() }
-            val trackStroke = androidx.compose.runtime.remember(w) { Stroke(w) }
-            val arcStroke = androidx.compose.runtime.remember(w) { Stroke(w, cap = StrokeCap.Round) }
-            val ringColor = if (frac >= .9f) Color(0xFFFFA39A) else Color(0xFFB8E0C2)
-            Canvas(Modifier.fillMaxSize()) { drawBudgetRing(frac, w, trackStroke, arcStroke, Color(0x2EFFFFFF), ringColor) }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (overall == null) "—" else "${overall.pct}%", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("used", color = Color.White.copy(alpha = .88f), fontSize = 8.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            Box(Modifier.size(104.dp), contentAlignment = Alignment.Center) {
+                // Stroke objects are created once (not per draw); geometry below is value-class math only.
+                val w = with(androidx.compose.ui.platform.LocalDensity.current) { 14.dp.toPx() }
+                val trackStroke = remember(w) { Stroke(w) }
+                val arcStroke = remember(w) { Stroke(w, cap = StrokeCap.Round) }
+                val ringColor = when (lvl) { Level.Ok -> HeroMint; Level.Near -> HeroAmber; Level.Over -> HeroCoral }
+                val reveal = rememberReveal(overall?.id, ready = overall != null, durationMillis = 1000)
+                Canvas(Modifier.fillMaxSize()) { drawBudgetRing(frac, w, trackStroke, arcStroke, Color(0x2EFFFFFF), ringColor, HeroRed, reveal.value) }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(if (overall == null) "—" else "${overall.pct}%", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("used", color = Color.White.copy(alpha = .85f), fontSize = 10.sp)
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Total budget", color = Color.White.copy(alpha = .85f), fontSize = 11.sp)
+                if (overall == null) {
+                    Text("Tap to set monthly budget", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+                } else {
+                    Text(Money.format(overall.spent), color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(vertical = 2.dp))
+                    Text("of ${Money.format(overall.limit)}", color = Color.White.copy(alpha = .85f), fontSize = 11.sp, maxLines = 1)
+                    val (label, color) = when (lvl) {
+                        Level.Ok -> "On track" to HeroMint
+                        Level.Near -> (if (overall.spent >= overall.limit) "Limit reached" else "Near limit") to HeroAmber
+                        Level.Over -> "Over budget" to HeroCoral
+                    }
+                    Text(
+                        label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(20.dp)).background(color.copy(alpha = .18f)).padding(horizontal = 9.dp, vertical = 4.dp),
+                    )
+                }
             }
         }
-        Column {
-            Text("Total budget", color = Color.White.copy(alpha = .88f), fontSize = 10.sp)
-            if (overall == null) {
-                Text("Tap to set monthly budget", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
-            } else {
-                Text(Money.format(overall.spent), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 3.dp))
-                Text("of ${Money.format(overall.limit)}", color = Color.White.copy(alpha = .88f), fontSize = 9.sp)
+        if (overall != null) {
+            val left = overall.limit - overall.spent
+            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HeroStat(if (left < 0) "Over by" else "Left", Money.format(kotlin.math.abs(left)), if (left < 0) HeroCoral else Color.White, Modifier.weight(1.2f))
+                HeroStat("Per day", if (left > 0 && daysLeft > 0) Money.format(left / daysLeft) else "—", Color.White, Modifier.weight(1.2f))
+                HeroStat("Days left", "$daysLeft", Color.White, Modifier.weight(.8f))
             }
         }
     }
 }
 
 @Composable
-private fun BudgetCard(b: BudgetRow, onClick: () -> Unit) {
+private fun HeroStat(label: String, value: String, valueColor: Color, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .1f)).padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Text(label, color = Color.White.copy(alpha = .75f), fontSize = 9.sp, maxLines = 1)
+        Text(value, color = valueColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * Sub-budget card. Colours step up green -> amber (80%) -> red (over). Over 100% the bar stays full: the part up to
+ * the limit tick is soft red and the overflow solid red, with "Over by X" underneath.
+ */
+@Composable
+private fun BudgetCard(b: BudgetRow, daysLeft: Int, onClick: () -> Unit) {
     val c = mc
-    val danger = b.pct >= 90
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        AppCard(padding = 12.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CategoryIcon(b.icon, b.tone, size = 36.dp)
-                Column(Modifier.weight(1f)) {
-                    Text(b.name, color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text("${Money.format(b.spent)} / ${Money.format(b.limit)}", color = c.muted, fontSize = 9.sp)
-                }
-                Text("${b.pct}%", color = if (danger) c.expense else c.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    val lvl = level(b)
+    val color = when (lvl) { Level.Ok -> c.primary; Level.Near -> c.warning; Level.Over -> c.expense }
+    AppCard(padding = 14.dp, onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            CategoryIcon(b.icon, b.tone, size = 40.dp)
+            Column(Modifier.weight(1f)) {
+                Text(b.name, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${Money.format(b.spent)} of ${Money.format(b.limit)}", color = c.muted, fontSize = 11.sp, maxLines = 1)
             }
-            AppProgress(b.spent.toFloat() / b.limit.coerceAtLeast(1), Modifier.padding(top = 8.dp), danger = danger)
+            Text(
+                "${b.pct}%", color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(color.copy(alpha = .13f)).padding(horizontal = 9.dp, vertical = 4.dp),
+            )
+        }
+        AppProgress(
+            b.spent.toFloat() / b.limit.coerceAtLeast(1), Modifier.padding(top = 10.dp), thumb = false,
+            fillColor = if (lvl == Level.Over) c.expense.copy(alpha = .45f) else color, overColor = c.expense,
+        )
+        val left = b.limit - b.spent
+        Row(Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (left < 0) {
+                Text("Over by ${Money.format(-left)}", color = c.expense, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            } else {
+                Text("${Money.format(left)} left", color = c.muted, fontSize = 11.sp)
+            }
+            if (left > 0 && daysLeft > 0) Text("≈ ${Money.format(left / daysLeft)}/day", color = c.muted, fontSize = 11.sp)
         }
     }
 }
@@ -213,24 +287,22 @@ private fun BudgetCard(b: BudgetRow, onClick: () -> Unit) {
 @Composable
 private fun VaultCard(v: VaultRow, onClick: () -> Unit) {
     val c = mc
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        AppCard {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFFF0EADC)), contentAlignment = Alignment.Center) {
-                    EmojiIcon(MIcon.fromKey(v.iconKey), Color(0xFF9B7734))
+    AppCard(onClick = onClick) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFFF0EADC)), contentAlignment = Alignment.Center) {
+                EmojiIcon(MIcon.fromKey(v.iconKey), Color(0xFF9B7734))
+            }
+            Column(Modifier.weight(1f)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(v.name, color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${v.pct}%", color = c.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
-                Column(Modifier.weight(1f)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(v.name, color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${v.pct}%", color = c.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Text("${Money.format(v.saved)} / ${Money.format(v.target)}", color = c.muted, fontSize = 9.sp, modifier = Modifier.padding(top = 3.dp))
-                    AppProgress(v.saved.toFloat() / v.target.coerceAtLeast(1), Modifier.padding(vertical = 4.dp))
-                    Text(
-                        if (v.saved >= v.target) "Goal reached" else "${Money.format(v.target - v.saved)} to go",
-                        color = c.muted, fontSize = 9.sp,
-                    )
-                }
+                Text("${Money.format(v.saved)} / ${Money.format(v.target)}", color = c.muted, fontSize = 9.sp, modifier = Modifier.padding(top = 3.dp))
+                AppProgress((v.saved.toFloat() / v.target.coerceAtLeast(1)).coerceAtMost(1f), Modifier.padding(vertical = 4.dp), fillColor = if (v.saved >= v.target) c.income else c.primary)
+                Text(
+                    if (v.saved >= v.target) "Goal reached" else "${Money.format(v.target - v.saved)} to go",
+                    color = if (v.saved >= v.target) c.income else c.muted, fontSize = 9.sp,
+                )
             }
         }
     }
@@ -329,7 +401,7 @@ private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     val c = mc
     Text(
         label, color = if (selected) c.onPrimary else c.muted, fontSize = 11.sp,
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (selected) c.primary else c.surface2).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+        modifier = Modifier.tactile(RoundedCornerShape(20.dp), scale = .94f, onClick = onClick).background(if (selected) c.primary else c.surface2).padding(horizontal = 12.dp, vertical = 7.dp),
     )
 }
 
@@ -410,13 +482,16 @@ private fun OverallDetailSheet(
 private fun SubRow(name: String, limit: Long, spent: Long, icon: MIcon, tone: com.monager.app.ui.components.Tone, onClick: (() -> Unit)?) {
     val c = mc
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.surface2).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(10.dp),
+        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.tactile(RoundedCornerShape(12.dp), scale = .98f, onClick = onClick) else Modifier.clip(RoundedCornerShape(12.dp))).background(c.surface2).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         CategoryIcon(icon, tone, size = 32.dp)
         Column(Modifier.weight(1f)) {
             Text(name, color = c.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text("Spent ${Money.format(spent)}", color = c.muted, fontSize = 9.sp)
+            Text(
+                if (limit in 1 until spent) "Spent ${Money.format(spent)} · over by ${Money.format(spent - limit)}" else "Spent ${Money.format(spent)}",
+                color = if (limit in 1 until spent) c.expense else c.muted, fontSize = 9.sp,
+            )
         }
         Text(Money.format(limit), color = c.text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }

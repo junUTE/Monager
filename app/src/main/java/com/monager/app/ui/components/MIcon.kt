@@ -118,6 +118,50 @@ enum class MIcon(private val path: String) {
     Billiard("M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M6 12a6 6 0 1 0 12 0a6 6 0 1 0 -12 0M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"),
     Shoe("M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0ZM20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0ZM16 17h4M4 13h4"),
     Burger("M12 16H4a2 2 0 1 1 0-4h16a2 2 0 1 1 0 4h-4.25M5 12a2 2 0 0 1-2-2 9 7 0 0 1 18 0 2 2 0 0 1-2 2M5 16a2 2 0 0 0-2 2 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 2 2 0 0 0-2-2q0 0 0 0M0 0m6.67 12 6.13 4.6a2 2 0 0 0 2.8-.4l3.15-4.2"),
+    Zap("M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"),
+    Faucet("M4 12h9a3 3 0 0 1 3 3v1M4 9v6M16 19v1M12 12V8M9 8h6M16 22h.01"),
+    Flame("M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"),
+    Globe("M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"),
+    Cloud("M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"),
+    Subscription("M0 0m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M0 0m7 22-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"),
+    Plug("M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"),
+    Luggage("M6 20a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2M8 18V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14M10 20h4M6 21a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M16 21a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"),
+    PalmTree("M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3M5.89 9.71c-2.15 2.15-2.3 5.47-.35 7.43l4.24-4.25.7-.7.71-.71 2.12-2.12c-1.95-1.96-5.27-1.8-7.42.35M11 15.5c.5 2.5-.17 4.5-1 6.5h4c2-5.5-.5-12-1-14"),
+    Hotel("M10 22v-6.57M12 11h.01M12 7h.01M14 15.43V22M15 16a5 5 0 0 0-6 0M16 11h.01M16 7h.01M8 11h.01M8 7h.01M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-16a2 2 0 0 1 2 -2Z"),
+    TravelMap("M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0zM15 5.764v15M9 3.236v15"),
+    Tent("M3.5 21 14 3M20.5 21 10 3M15.5 21 12 15l-3.5 6M2 21h20"),
+    Mountain("M8 3l4 8 5-5 5 15H2L8 3z"),
+    Train("M8 3.1V7a4 4 0 0 0 8 0V3.1M0 0m9 15-1-1M0 0m15 15 1-1M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5ZM0 0m8 19-2 3M0 0m16 19 2 3"),
+    Taxi("M10 2h4M0 0m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8M7 14h.01M17 14h.01M5 10h14a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2ZM5 18v2M19 18v2"),
+    Ship("M12 10.189V14M12 2v3M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6M19.38 20A11.6 11.6 0 0 0 21 14l-8.188-3.639a2 2 0 0 0-1.624 0L3 14a11.6 11.6 0 0 0 2.81 7.76M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1s1.2 1 2.5 1c2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"),
+    Ticket("M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2ZM13 5v2M13 17v2M13 11v2"),
+    Camera("M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3zM9 13a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"),
+    Pizza("M15 11h.01M11 15h.01M16 16h.01M2 16l20 6-6-20A20 20 0 0 0 2 16M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"),
+    Rice("M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9ZM7 21h10M5.5 12C6 8 8.5 6 12 6s6 2 6.5 6"),
+    Soda("M6 8l1.75 12.28a2 2 0 0 0 2 1.72h4.54a2 2 0 0 0 2-1.72L18 8M5 8h14M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0M12 8l1-6h2"),
+    Beer("M17 11h1a3 3 0 0 1 0 6h-1M9 12v6M13 12v6M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2 11 2s2 1.5 3 1.5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"),
+    Wine("M8 22h8M7 10h10M12 15v7M12 15a5 5 0 0 0 5-5c0-2-.5-4-2-8H9c-1.5 4-2 6-2 8a5 5 0 0 0 5 5Z"),
+    IceCream("M7 11l4.08 10.35a1 1 0 0 0 1.84 0L17 11M17 7A5 5 0 0 0 7 7M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4"),
+    Watermelon("M21.66 17.67a1.08 1.08 0 0 1-.04 1.6A12 12 0 0 1 4.73 2.38a1.1 1.1 0 0 1 1.61-.04zM19.65 15.66A8 8 0 0 1 8.35 4.34M14 10l-5.5 5.5M14 17.85V10H6.15"),
+    Baby("M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5M15 12h.01M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1M9 12h.01"),
+    Paw("M11 4a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M18 8a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M2 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"),
+    Shield("M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"),
+    Tooth("M7 3c-2 0-4 1.5-4 4.5 0 2 1 3.5 1.5 5.5.6 2.5 1 8 3 8 1.5 0 1.5-4.5 2.5-6 .5-.8 1.5-.8 2 0 1 1.5 1 6 2.5 6 2 0 2.4-5.5 3-8 .5-2 1.5-3.5 1.5-5.5C21 4.5 19 3 17 3c-2 0-3 1-5 1S9 3 7 3Z"),
+    Syringe("M18 2l4 4M17 7l3-3M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5M9 11l4 4M5 19l-3 3M14 4l6 6"),
+    Glasses("M2 15a4 4 0 1 0 8 0a4 4 0 1 0 -8 0M14 15a4 4 0 1 0 8 0a4 4 0 1 0 -8 0M14 15a2 2 0 0 0-2-2 2 2 0 0 0-2 2M2.5 13 5 7c.7-1.3 1.4-2 3-2M21.5 13 19 7c-.7-1.3-1.5-2-3-2"),
+    School("M14 22v-4a2 2 0 1 0-4 0v4M18 10l3.447 1.724a1 1 0 0 1 .553.894V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7.382a1 1 0 0 1 .553-.894L6 10M18 5v17M4 6l7.106-3.553a2 2 0 0 1 1.788 0L20 6M6 5v17M10 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"),
+    Laundry("M3 6h3M17 6h.01M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-16a2 2 0 0 1 2 -2ZM7 13a5 5 0 1 0 10 0a5 5 0 1 0 -10 0M12 18a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 1 0-5"),
+    Sofa("M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0zM4 18v2M20 18v2M12 4v9"),
+    Truck("M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14M5 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M15 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"),
+    Newspaper("M15 18h-5M18 14h-8M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2M10 6h8v4h-8V6Z"),
+    Barber("M8 2h8M8 22h8M9 2v20M15 2v20M9 6l6 4M9 12l6 4"),
+    Palette("M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8zM13 6.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0M17 10.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0M6 12.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0M8 7.5a0.5 0.5 0 1 0 1 0a0.5 0.5 0 1 0 -1 0"),
+    Ring("M12 8a6 6 0 1 0 0 12a6 6 0 1 0 0 -12M9 2h6l1.5 3L12 8 7.5 5Z"),
+    Flower("M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 8V2M12 22v-6M8 12H2M22 12h-6M9 9 5 5M19 19l-4-4M9 15l-4 4M19 5l-4 4"),
+    Party("M5.8 11.3 2 22l10.7-3.79M4 3h.01M22 8h.01M15 2h.01M22 20h.01M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"),
+    Charity("M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7ZM12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66"),
+    Handshake("M11 17l2 2a1 1 0 1 0 3-3M14 14l2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4M21 3l1 11h-2M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3M3 4h8"),
+    Calculator("M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-16a2 2 0 0 1 2 -2ZM8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"),
     Backspace("M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zM0 0m12 9 6 6M0 0m18 9-6 6");
 
     companion object {
@@ -142,17 +186,29 @@ enum class MIcon(private val path: String) {
             Popcorn to "🍿", Cookie to "🍪", Landline to "☎️", Basket to "🛒", Soap to "🧼", Dress to "👗", Jeans to "👖",
             HourlyPay to "⏰", Trophy to "🏆", Candles to "📊", MoneyBag to "💰", Banknote to "💵", Wrench to "🔧",
             Parking to "🅿️", Gem to "💎", Bed to "🛏️", CookingPot to "🍲", Waves to "🏊", Billiard to "🎱", Shoe to "👟",
+            Zap to "⚡", Faucet to "🚰", Flame to "🔥", Globe to "🌐", Cloud to "☁️", Subscription to "🔄", Plug to "🔌", Luggage to "🧳", PalmTree to "🏝️", Hotel to "🏨", TravelMap to "🗺️", Tent to "⛺", Mountain to "⛰️", Train to "🚆", Taxi to "🚕", Ship to "⛴️", Ticket to "🎟️", Camera to "📷", Pizza to "🍕", Rice to "🍚", Soda to "🥤", Beer to "🍺", Wine to "🍷", IceCream to "🍦", Watermelon to "🍉", Baby to "🍼", Paw to "🐾", Shield to "🛡️", Tooth to "🦷", Syringe to "💉", Glasses to "👓", School to "🏫", Laundry to "🧺", Sofa to "🛋️", Truck to "🚚", Newspaper to "📰", Barber to "💈", Palette to "🎨", Ring to "💍", Flower to "💐", Party to "🎉", Charity to "💝", Handshake to "🤝", Calculator to "🧮",
         )
 
-        /** Icons offered when creating or editing a category. */
+        /** Icons offered when creating or editing a category, grouped by theme (food, travel, bills, ...). */
         val picker: List<MIcon> = listOf(
-            Utensils, Coffee, Car, Plane, ShoppingBag, Receipt, Phone, House, Heart, Graduation, Gift, Briefcase,
-            Wallet, Sparkles, Users, Chart, Calendar, Transfer, Sun, Moon, Settings, Search, More, Home,
-            CreditCard, Landmark, Droplet, Lightbulb, Music, Film, Gamepad, Shirt, Book, Tv, Wifi, Pill,
-            Fuel, Bike, Bus, Coins, TrendingUp, Cake, Scissors, Umbrella, Laptop, Cart, Tag, Star,
-            Noodles, Apple, Motorcycle, SprayBottle, Dumbbell, Hospital, Ball, Lipstick, FileCheck, MoneyOut,
-            PiggyBank, Building, Key, Popcorn, Cookie, Landline, Basket, Soap, Dress, Jeans, HourlyPay, Trophy,
-            Candles, MoneyBag, Banknote, Wrench, Parking, Gem, Bed, CookingPot, Waves, Billiard, Shoe, Burger,
+            // Food & drink
+            Utensils, Burger, Noodles, Rice, Pizza, CookingPot, Coffee, Soda, Beer, Wine, Cake, IceCream, Cookie, Popcorn, Apple, Watermelon, Basket,
+            // Transport & travel
+            Car, Taxi, Motorcycle, Bike, Bus, Train, Plane, Ship, Fuel, Parking, Wrench, Luggage, PalmTree, Hotel, TravelMap, Tent, Mountain, Ticket, Camera,
+            // Bills & utilities
+            Zap, Faucet, Droplet, Flame, Wifi, Globe, Phone, Landline, Tv, Cloud, Subscription, Plug, Receipt, FileCheck, Lightbulb,
+            // Shopping & beauty
+            ShoppingBag, Cart, Shirt, Dress, Jeans, Shoe, Gem, Lipstick, Soap, SprayBottle, Tag, Laptop,
+            // Home
+            House, Home, Building, Key, Bed, Sofa, Laundry, Truck, Newspaper, Umbrella,
+            // Health, family & education
+            Heart, Hospital, Pill, Syringe, Tooth, Glasses, Dumbbell, Baby, Paw, Users, Graduation, School, Book, Shield,
+            // Fun & gifts
+            Music, Film, Gamepad, Ball, Billiard, Waves, Palette, Party, Flower, Ring, Gift, Barber, Scissors, Star, Trophy, Sparkles,
+            // Money & work
+            Wallet, Briefcase, CreditCard, Landmark, Coins, Banknote, MoneyBag, MoneyOut, PiggyBank, TrendingUp, Candles, HourlyPay, Calculator, Charity, Handshake, Transfer,
+            // Other
+            Chart, Calendar, Clock, Sun, Moon, Settings, Search, More,
         )
     }
 
@@ -178,7 +234,8 @@ enum class MIcon(private val path: String) {
 /** Category/vault icon: colour emoji when the icon has one, otherwise the tinted stroke vector. */
 @Composable
 fun EmojiIcon(icon: MIcon, tint: Color, size: Dp = 20.dp) {
-    val e = icon.emoji
+    // Newer emoji (e.g. 🧳 🦷 🧺) are missing from old system fonts: fall back to the stroke icon instead of a tofu box.
+    val e = icon.emoji?.takeIf { EmojiSupport.has(it) }
     if (e == null) MIconView(icon, tint, size = size)
     else Text(e, fontSize = (size.value * 0.9f).sp, lineHeight = (size.value * 1.1f).sp, textAlign = TextAlign.Center, modifier = Modifier.size(size))
 }
@@ -186,4 +243,11 @@ fun EmojiIcon(icon: MIcon, tint: Color, size: Dp = 20.dp) {
 @Composable
 fun MIconView(icon: MIcon, tint: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
     Icon(imageVector = icon.vector, contentDescription = null, tint = tint, modifier = modifier.size(size))
+}
+
+/** Caches Paint.hasGlyph per emoji: one native lookup per icon for the app's lifetime. */
+private object EmojiSupport {
+    private val paint by lazy(LazyThreadSafetyMode.NONE) { android.graphics.Paint() }
+    private val cache = HashMap<String, Boolean>()
+    fun has(emoji: String): Boolean = cache.getOrPut(emoji) { runCatching { paint.hasGlyph(emoji) }.getOrDefault(true) }
 }

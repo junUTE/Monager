@@ -38,11 +38,15 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 @Immutable
-data class TopSpend(val name: String, val icon: MIcon, val tone: Tone, val amount: Long)
+data class TopSpend(val id: Long, val name: String, val icon: MIcon, val tone: Tone, val amount: Long)
 
 /** Expense of one period (this week / this month), the previous period for the % change, and its top categories. */
 @Immutable
-data class PeriodSpend(val current: Long = 0, val previous: Long = 0, val top: List<TopSpend> = emptyList())
+data class PeriodSpend(
+    val current: Long = 0, val previous: Long = 0, val top: List<TopSpend> = emptyList(),
+    /** The window [current] covers; tapping a top category opens its report for this window. */
+    val range: MillisRange = MillisRange(0, 0),
+)
 
 @Immutable
 data class HomeState(
@@ -85,13 +89,13 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
         combine(c.transactions.totalsByParent(TxType.EXPENSE, r.from, r.to), c.categories.tree(TxType.EXPENSE)) { totals, tree ->
             val byId = tree.associateBy { it.parent.id }
             totals.mapNotNull { t ->
-                byId[t.groupId]?.parent?.let { TopSpend(it.name, MIcon.fromKey(it.iconKey), Tone.fromKey(it.toneKey), t.total) }
+                byId[t.groupId]?.parent?.let { TopSpend(it.id, it.name, MIcon.fromKey(it.iconKey), Tone.fromKey(it.toneKey), t.total) }
             }.take(4)
         }
 
     private fun period(cur: MillisRange, prev: MillisRange): Flow<PeriodSpend> =
         combine(c.transactions.total(TxType.EXPENSE, cur.from, cur.to), c.transactions.total(TxType.EXPENSE, prev.from, prev.to), top(cur)) { a, b, t ->
-            PeriodSpend(a, b, t)
+            PeriodSpend(a, b, t, cur)
         }
 
     /** Cumulative per-day curve for one type, cut at today, scaled so the final total is 1.0; empty when nothing was booked. */
@@ -140,17 +144,56 @@ class HomeViewModel(private val c: AppContainer) : ViewModel() {
 @Immutable
 data class TxGroup(val label: String, val items: List<TxItem>)
 
+/** Day groups for a newest-first row list; labels come from [TimeRanges.label] (Today / Yesterday / dd/MM). */
+internal fun groupByDay(rows: List<TxRow>, today: LocalDate): List<TxGroup> {
+    val groups = ArrayList<TxGroup>()
+    var label = ""
+    var bucket = ArrayList<TxItem>()
+    rows.forEach { row ->
+        val item = row.toItem(today)
+        if (item.date != label && bucket.isNotEmpty()) { groups += TxGroup(label, bucket); bucket = ArrayList() }
+        label = item.date
+        bucket += item
+    }
+    if (bucket.isNotEmpty()) groups += TxGroup(label, bucket)
+    return groups
+}
+
+/** One parent category offered as a filter chip on the Transactions tab. */
 @Immutable
-data class TransactionsState(val loaded: Boolean = false, val balance: Long = 0, val groups: List<TxGroup> = emptyList())
+data class FilterChipUi(val id: Long, val name: String, val icon: MIcon, val tone: Tone)
+
+@Immutable
+data class TransactionsState(
+    val loaded: Boolean = false,
+    val balance: Long = 0,
+    val groups: List<TxGroup> = emptyList(),
+    /** Window of the selected tab (for opening a category report on the same dates) and its label. */
+    val range: MillisRange = MillisRange(0, 0),
+    val rangeLabel: String = "",
+    /** With a category filter: number of rows and their total (absolute amounts). */
+    val count: Int = 0,
+    val filteredTotal: Long = 0,
+)
 
 class TransactionsViewModel(private val c: AppContainer) : ViewModel() {
     private val tab = MutableStateFlow(1)
     val selected: StateFlow<Int> = tab
+    private val category = MutableStateFlow(-1L)
+    /** Selected parent category id, -1 = all. */
+    val categoryFilter: StateFlow<Long> = category
 
     fun select(i: Int) { tab.value = i }
+    /** Tapping the selected chip again clears the filter. */
+    fun selectCategory(id: Long) { category.value = if (category.value == id) -1L else id }
+
+    val filters: StateFlow<List<FilterChipUi>> =
+        combine(c.categories.tree(TxType.EXPENSE), c.categories.tree(TxType.INCOME)) { exp, inc ->
+            (exp + inc).map { n -> FilterChipUi(n.parent.id, n.parent.name, MIcon.fromKey(n.parent.iconKey), Tone.fromKey(n.parent.toneKey)) }
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val state: StateFlow<TransactionsState> = combine(tab, c.today) { t, today -> t to today }.flatMapLatest { (t, today) ->
+    val state: StateFlow<TransactionsState> = combine(tab, category, c.today) { t, cat, today -> Triple(t, cat, today) }.flatMapLatest { (t, cat, today) ->
         val thisMonth = YearMonth.from(today)
         val r = when (t) {
             0 -> TimeRanges.month(thisMonth.minusMonths(1))
@@ -158,18 +201,13 @@ class TransactionsViewModel(private val c: AppContainer) : ViewModel() {
             // "Future": anything after today (planned transactions, not yet in the balance).
             else -> MillisRange(TimeRanges.startOfDay(today.plusDays(1)), Long.MAX_VALUE)
         }
-        combine(c.transactions.totalBalance(today), c.transactions.rowsBetween(r.from, r.to)) { balance, rows ->
-            val groups = ArrayList<TxGroup>()
-            var label = ""
-            var bucket = ArrayList<TxItem>()
-            rows.forEach { row ->
-                val item = row.toItem(today)
-                if (item.date != label && bucket.isNotEmpty()) { groups += TxGroup(label, bucket); bucket = ArrayList() }
-                label = item.date
-                bucket += item
-            }
-            if (bucket.isNotEmpty()) groups += TxGroup(label, bucket)
-            TransactionsState(true, balance, groups)
+        val label = when (t) { 0 -> "Last month"; 1 -> "This month"; else -> "Upcoming" }
+        val rowsFlow = if (cat < 0) c.transactions.rowsBetween(r.from, r.to) else c.transactions.rowsFiltered(r.from, r.to, cat)
+        combine(c.transactions.totalBalance(today), rowsFlow) { balance, rows ->
+            TransactionsState(
+                true, balance, groupByDay(rows, today), r, label,
+                count = rows.size, filteredTotal = if (cat < 0) 0L else rows.sumOf { it.amount },
+            )
         }
     }
         .flowOn(Dispatchers.Default)
@@ -330,6 +368,7 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
         TransactionsViewModel::class.java -> TransactionsViewModel(container)
         AddTransactionViewModel::class.java -> AddTransactionViewModel(container)
         CategoriesViewModel::class.java -> CategoriesViewModel(container)
+        com.monager.app.ui.categoryreport.CategoryReportViewModel::class.java -> com.monager.app.ui.categoryreport.CategoryReportViewModel(container)
         BudgetsViewModel::class.java -> BudgetsViewModel(container)
         DebtsViewModel::class.java -> DebtsViewModel(container)
         AnalyticsViewModel::class.java -> AnalyticsViewModel(container)

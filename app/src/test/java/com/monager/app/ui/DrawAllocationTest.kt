@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.monager.app.ui.analytics.BarUi
 import com.monager.app.ui.analytics.SliceUi
 import com.monager.app.ui.components.drawBudgetRing
-import com.monager.app.ui.components.drawCashFlowBars
+import com.monager.app.ui.components.drawFlowBars
 import com.monager.app.ui.components.drawCompareBars
 import com.monager.app.ui.components.drawTrendLine
 import com.monager.app.ui.components.drawDonut
@@ -80,12 +80,16 @@ class DrawAllocationTest {
 
     @Test fun donut() = assertCheap("donut", bytesPerDraw { drawDonut(slices, palette, Color.LightGray, 40f, stroke) })
     @Test fun donutEmpty() = assertCheap("donut empty", bytesPerDraw { drawDonut(emptyList(), palette, Color.LightGray, 40f, stroke) })
-    @Test fun cashFlowBars() = assertCheap("cash-flow bars", bytesPerDraw { drawCashFlowBars(bars, Color.Green, Color.Red, Color.Gray, 8f, radius) })
+    @Test fun donutRevealing() = assertCheap("donut mid-reveal", bytesPerDraw { drawDonut(slices, palette, Color.LightGray, 40f, stroke, .4f) })
+    @Test fun cashFlowBars() = assertCheap("cash-flow bars", bytesPerDraw { drawFlowBars(bars, Color.Green, Color.Red, Color.Gray, Color.LightGray, 3, radius, .6f) })
     @Test fun splitBar() = assertCheap("home split bar", bytesPerDraw { drawSplitBar(true, .4f, Color.Gray, Color.Green, Color.Red) })
     @Test fun trendLine() = assertCheap("home trend line", bytesPerDraw { drawTrendLine(trend, 30, 4, trendPath, trendArea, Color.Red, trendFill, Color.LightGray, stroke, dash) })
+    @Test fun trendLineRevealing() = assertCheap("home trend line mid-reveal", bytesPerDraw { drawTrendLine(trend, 30, 4, trendPath, trendArea, Color.Red, trendFill, Color.LightGray, stroke, dash, .5f) })
     @Test fun compareBars() = assertCheap("home compare bars", bytesPerDraw { drawCompareBars(.5f, 1f, true, true, Color.Gray, Color.Green) })
     @Test fun budgetRing() = assertCheap("budget ring", bytesPerDraw { drawBudgetRing(.7f, 40f, stroke, roundStroke, Color.Gray, Color.Green) })
+    @Test fun budgetRingOver() = assertCheap("budget ring over 100%", bytesPerDraw { drawBudgetRing(1.4f, 40f, stroke, roundStroke, Color.Gray, Color.Green, Color.Red, .9f) })
     @Test fun progressWithThumb() = assertCheap("progress + thumb", bytesPerDraw { drawProgress(.6f, Color.Gray, Color.Green, true) })
+    @Test fun progressOver() = assertCheap("progress over 100%", bytesPerDraw { drawProgress(1.5f, Color.Gray, Color.Green, false, .8f, Color.Red) })
     @Test fun limitSlider() = assertCheap("limit slider", bytesPerDraw { drawLimitSlider(.6f, Color.Gray, Color.Green) })
 
     private companion object {

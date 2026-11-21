@@ -75,7 +75,7 @@ fun SettingsScreen(vm: SettingsViewModel, onOpenCategories: () -> Unit, onOpenDe
                 item(key = "msg") {
                     AppCard {
                         Text(msg, color = c.text, fontSize = 12.sp)
-                        Text("Dismiss", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp).clickable(onClick = vm::dismissMessage))
+                        com.monager.app.ui.components.TextAction("Dismiss", c.primary, vm::dismissMessage, Modifier.padding(top = 8.dp))
                     }
                 }
             }

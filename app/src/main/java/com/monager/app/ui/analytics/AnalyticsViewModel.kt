@@ -22,9 +22,17 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import kotlin.math.roundToInt
+import com.monager.app.ui.components.MIcon
+import com.monager.app.ui.components.Tone
 
 @Immutable
 data class SliceUi(val name: String, val percent: Int, val amount: Long, val sweep: Float)
+
+/** One expense parent category in the period: a tappable row on Reports. [colorIndex] matches its donut slice colour. */
+@Immutable
+data class CategoryShareUi(
+    val id: Long, val name: String, val icon: MIcon, val tone: Tone, val amount: Long, val percent: Int, val colorIndex: Int,
+)
 
 @Immutable
 data class DayCell(val income: Long = 0, val expense: Long = 0)
@@ -43,7 +51,14 @@ data class AnalyticsState(
     /** Expense change vs the previous period in percent; null when the previous period had no expenses. */
     val changePct: Int? = null,
     val slices: List<SliceUi> = emptyList(),
+    /** Every expense category of the period, largest first (the donut groups the tail into "Other"). */
+    val categories: List<CategoryShareUi> = emptyList(),
     val bars: List<BarUi> = emptyList(),
+    /** Largest single bucket value (income or expense): the cash-flow chart's scale. */
+    val peak: Long = 0,
+    /** The period in epoch millis, so a category row can open its report on the same dates. */
+    val from: Long = 0,
+    val to: Long = 0,
 )
 
 private data class Request(val kind: PeriodKind, val offset: Int, val custom: Pair<LocalDate, LocalDate>?)
@@ -71,8 +86,8 @@ class AnalyticsViewModel(private val c: AppContainer) : ViewModel() {
             val bars = buckets.map { (label, inc, exp) -> BarUi(label, inc, exp, inc.toFloat() / peak, exp.toFloat() / peak) }
 
             val totalExpense = groups.sumOf { it.total }
-            val names = tree.associate { it.parent.id to it.parent.name }
-            val named = groups.map { (names[it.groupId] ?: "Other") to it.total }
+            val byId = tree.associateBy { it.parent.id }
+            val named = groups.map { (byId[it.groupId]?.parent?.name ?: "Other") to it.total }
             val top = named.take(MAX_SLICES - 1)
             val rest = named.drop(MAX_SLICES - 1).sumOf { it.second }
             val ranked = if (named.size > MAX_SLICES) top + ("Other" to rest) else named
@@ -81,12 +96,23 @@ class AnalyticsViewModel(private val c: AppContainer) : ViewModel() {
             val slices = ranked.mapIndexed { i, (name, amount) ->
                 SliceUi(name, percents[i], amount, if (totalExpense > 0) amount * 360f / totalExpense else 0f)
             }
+            val categories = groups.mapIndexedNotNull { i, g ->
+                val cat = byId[g.groupId]?.parent ?: return@mapIndexedNotNull null
+                CategoryShareUi(
+                    cat.id, cat.name, MIcon.fromKey(cat.iconKey), Tone.fromKey(cat.toneKey), g.total,
+                    if (totalExpense > 0) (g.total * 100.0 / totalExpense).roundToInt() else 0,
+                    // Same colour as the donut: the first MAX_SLICES - 1 get their own, the tail shares "Other".
+                    if (named.size > MAX_SLICES && i >= MAX_SLICES - 1) MAX_SLICES - 1 else i,
+                )
+            }
             AnalyticsState(
                 loading = false, kind = req.kind, label = range.label,
                 canGoNext = req.kind != PeriodKind.CUSTOM && req.offset < 0,
                 totalExpense = totalExpense, totalIncome = income.values.sum(),
                 changePct = if (prevExpense > 0) ((totalExpense - prevExpense) * 100.0 / prevExpense).roundToInt() else null,
-                slices = slices, bars = bars,
+                slices = slices, categories = categories, bars = bars,
+                peak = if (bars.any { it.income > 0 || it.expense > 0 }) peak else 0L,
+                from = m.from, to = m.to,
             )
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalyticsState())
@@ -117,5 +143,5 @@ class AnalyticsViewModel(private val c: AppContainer) : ViewModel() {
     }
     fun setCustom(from: LocalDate, to: LocalDate) { request.value = Request(PeriodKind.CUSTOM, 0, from to to) }
 
-    private companion object { const val MAX_SLICES = 5 }
+    private companion object { const val MAX_SLICES = 6 }
 }

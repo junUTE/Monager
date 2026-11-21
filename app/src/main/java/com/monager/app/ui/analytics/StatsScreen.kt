@@ -45,7 +45,20 @@ import com.monager.app.core.PeriodKind
 import com.monager.app.ui.components.AppCard
 import com.monager.app.ui.components.AppIconButton
 import com.monager.app.ui.components.DateField
-import com.monager.app.ui.components.drawCashFlowBars
+import com.monager.app.ui.components.drawFlowBars
+import com.monager.app.ui.components.AppProgress
+import com.monager.app.ui.components.CategoryIcon
+import com.monager.app.ui.components.MIconView
+import com.monager.app.ui.components.raised
+import com.monager.app.ui.components.rememberReveal
+import com.monager.app.ui.components.tactile
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.style.TextOverflow
 import com.monager.app.ui.components.drawDonut
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.RaisedBox
@@ -56,11 +69,16 @@ import com.monager.app.ui.theme.mc
 
 private val Kinds = listOf(PeriodKind.WEEK, PeriodKind.MONTH, PeriodKind.YEAR, PeriodKind.CUSTOM)
 private val KindLabels = listOf("Week", "Month", "Year", "Custom")
-private val SlicePaletteLight = listOf(Color(0xFF143D30), Color(0xFFDC604E), Color(0xFF557A9B), Color(0xFFD29D3F), Color(0xFFAAB3AE))
-private val SlicePaletteDark = listOf(Color(0xFF4FB98F), Color(0xFFF08A7A), Color(0xFF7FA6C9), Color(0xFFE6B960), Color(0xFF8A9690))
+// Five distinct slice colours + grey for "Other" (index MAX_SLICES - 1 in the ViewModel).
+private val SlicePaletteLight = listOf(Color(0xFF1F6B52), Color(0xFFDC604E), Color(0xFF557A9B), Color(0xFFD29D3F), Color(0xFF8B6BB8), Color(0xFFAAB3AE))
+private val SlicePaletteDark = listOf(Color(0xFF4FB98F), Color(0xFFF08A7A), Color(0xFF7FA6C9), Color(0xFFE6B960), Color(0xFFB39DDB), Color(0xFF8A9690))
 
 @Composable
-fun StatsScreen(vm: AnalyticsViewModel, onBack: (() -> Unit)? = null) {
+fun StatsScreen(
+    vm: AnalyticsViewModel,
+    onBack: (() -> Unit)? = null,
+    onOpenCategory: (id: Long, from: Long, to: Long, period: String) -> Unit = { _, _, _, _ -> },
+) {
     val c = mc
     val st by vm.state.collectAsStateWithLifecycle()
     var customSheet by rememberSaveable { mutableStateOf(false) }
@@ -91,7 +109,8 @@ fun StatsScreen(vm: AnalyticsViewModel, onBack: (() -> Unit)? = null) {
             if (st.loading) {
                 item(key = "loading") { Text("Loading…", color = c.muted, fontSize = 12.sp, modifier = Modifier.padding(24.dp)) }
             } else {
-                item(key = "donut") { SpendingCard(st, palette) }
+                item(key = "summary") { SummaryCard(st) }
+                item(key = "donut") { SpendingCard(st, palette) { id -> onOpenCategory(id, st.from, st.to, st.label) } }
                 item(key = "flow") { FlowCard(st) }
             }
         }
@@ -102,54 +121,115 @@ fun StatsScreen(vm: AnalyticsViewModel, onBack: (() -> Unit)? = null) {
     }
 }
 
+/** Hero: net cash flow of the period with income / expense tiles and the expense change vs the previous period. */
 @Composable
-private fun SpendingCard(st: AnalyticsState, palette: List<Color>) {
-    val c = mc
-    AppCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
-                Text("Total spending", color = c.muted, fontSize = 10.sp)
-                Text(Money.format(st.totalExpense), color = c.text, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+private fun SummaryCard(st: AnalyticsState) {
+    val net = st.totalIncome - st.totalExpense
+    Column(Modifier.fillMaxWidth().raised(radius = 20.dp, depth = 5.dp, brush = mc.heroBrush).padding(18.dp)) {
+        Text("Net cash flow", color = Color.White.copy(alpha = .8f), fontSize = 11.sp)
+        Text(
+            (if (net > 0) "+" else if (net < 0) "−" else "") + Money.format(kotlin.math.abs(net)),
+            color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+        )
+        Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HeroTile("Income", st.totalIncome, MIcon.ArrowDown, Color(0xFFB8E0C2), null, Modifier.weight(1f))
+            HeroTile("Expense", st.totalExpense, MIcon.ArrowUp, Color(0xFFFFB4A8), st.changePct, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun HeroTile(label: String, amount: Long, icon: MIcon, accent: Color, changePct: Int?, modifier: Modifier) {
+    Column(modifier.clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = .1f)).padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(Modifier.size(20.dp).clip(CircleShape).background(accent.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+                MIconView(icon, accent, size = 13.dp)
             }
-            st.changePct?.let { pct ->
-                val good = pct <= 0 // spending less than before is good news
-                val tone = if (good) Color(0xFF166534) else Color(0xFF991B1B)
+            Text(label, color = Color.White.copy(alpha = .85f), fontSize = 11.sp, modifier = Modifier.weight(1f))
+            if (changePct != null) {
+                // Spending less than before is good news.
                 Text(
-                    (if (pct <= 0) "↓ " else "↑ ") + "${kotlin.math.abs(pct)}%", color = tone, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(if (good) Color(0xFFE7F5EA) else Color(0xFFFDE8E6)).padding(horizontal = 8.dp, vertical = 5.dp),
+                    (if (changePct <= 0) "↓" else "↑") + "${kotlin.math.abs(changePct)}%",
+                    color = if (changePct <= 0) Color(0xFFB8E0C2) else Color(0xFFFFB4A8), fontSize = 10.sp, fontWeight = FontWeight.Bold,
                 )
             }
         }
-        Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) { Donut(st, palette) }
-        if (st.slices.isEmpty()) {
+        Text(Money.format(amount), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+@Composable
+private fun SpendingCard(st: AnalyticsState, palette: List<Color>, onOpenCategory: (Long) -> Unit) {
+    val c = mc
+    AppCard(radius = 18.dp) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Spending by category", color = c.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(if (st.categories.isEmpty()) "Nothing spent yet" else "${st.categories.size} categories · tap one for details", color = c.muted, fontSize = 11.sp)
+            }
+        }
+        Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) { Donut(st, palette) }
+        if (st.categories.isEmpty()) {
             Text("No spending in this period.", color = c.muted, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                st.slices.forEachIndexed { i, s ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(8.dp).clip(CircleShape).background(palette[i % palette.size]))
-                        Text(s.name, color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 8.dp))
-                        Text("${s.percent}%", color = c.muted, fontSize = 11.sp, modifier = Modifier.padding(end = 12.dp))
-                        Text(Money.format(s.amount), color = c.text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    }
+            val max = st.categories.first().amount.coerceAtLeast(1L)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                st.categories.forEach { cat ->
+                    val key = palette[minOf(cat.colorIndex, palette.size - 1)]
+                    // Rows grouped into the grey "Other" slice keep the grey key dot but use their own category colour.
+                    val bar = if (cat.colorIndex >= palette.size - 1) cat.tone.fg else key
+                    CategoryShareRow(cat, key, bar, cat.amount.toFloat() / max, st.label) { onOpenCategory(cat.id) }
                 }
             }
         }
     }
 }
 
-/** Canvas donut. Sweeps are precomputed in the ViewModel; the Stroke is remembered, so drawing allocates nothing new. */
+/** Prominent, tappable category line: icon tile, name, share pill, amount, a share bar in its donut colour. */
+@Composable
+private fun CategoryShareRow(cat: CategoryShareUi, keyColor: Color, color: Color, frac: Float, revealKey: String, onClick: () -> Unit) {
+    val c = mc
+    Row(
+        Modifier.fillMaxWidth().tactile(RowShape, scale = .98f, onClick = onClick).padding(horizontal = 6.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(contentAlignment = Alignment.BottomEnd) {
+            CategoryIcon(cat.icon, cat.tone, size = 42.dp)
+            // Colour key that ties the row to its donut slice.
+            Box(Modifier.size(12.dp).clip(CircleShape).background(c.surface).padding(2.dp).clip(CircleShape).background(keyColor))
+        }
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(cat.name, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(Money.format(cat.amount), color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppProgress(frac, Modifier.weight(1f), thumb = false, fillColor = color, revealKey = revealKey)
+                Text(
+                    "${cat.percent}%", color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(color.copy(alpha = .14f)).padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+        }
+        MIconView(MIcon.ChevronRight, c.muted, size = 16.dp)
+    }
+}
+
+private val RowShape = RoundedCornerShape(14.dp)
+
+/** Canvas donut. Sweeps are precomputed in the ViewModel; the Stroke is remembered; the entrance sweep is read in draw. */
 @Composable
 private fun Donut(st: AnalyticsState, palette: List<Color>) {
     val c = mc
-    val strokePx = with(LocalDensity.current) { 21.dp.toPx() }
+    val strokePx = with(LocalDensity.current) { 24.dp.toPx() }
     val style = remember(strokePx) { Stroke(strokePx) }
     val emptyRing = c.surface2
-    Box(Modifier.size(130.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) { drawDonut(st.slices, palette, emptyRing, strokePx, style) }
+    val reveal = rememberReveal("${st.kind}-${st.label}", ready = !st.loading, durationMillis = 900)
+    Box(Modifier.size(170.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) { drawDonut(st.slices, palette, emptyRing, strokePx, style, reveal.value) }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(compact(st.totalExpense), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text(st.label, color = c.muted, fontSize = 8.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 18.dp), textAlign = TextAlign.Center)
+            Text(compact(st.totalExpense), color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("spent", color = c.muted, fontSize = 10.sp)
         }
     }
 }
@@ -162,44 +242,95 @@ private fun compact(v: Long): String = when {
     else -> v.toString()
 }
 
+private val FlowAxisW = 38.dp
+
+/** Cash flow: diverging income/expense bars; tap a bar to read its numbers in the header line. */
 @Composable
 private fun FlowCard(st: AnalyticsState) {
     val c = mc
-    AppCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                Text("Cash flow", color = c.muted, fontSize = 10.sp)
-                Text("Income & expenses", color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    var selected by rememberSaveable(st.label) { mutableIntStateOf(-1) }
+    val pick = st.bars.getOrNull(selected)
+    AppCard(radius = 18.dp) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Cash flow", color = c.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(pick?.label ?: "Whole period · tap a bar", color = c.muted, fontSize = 11.sp)
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(Modifier.size(6.dp).background(c.income, RoundedCornerShape(2.dp)))
-                Text("Thu", color = c.muted, fontSize = 9.sp)
-                Box(Modifier.size(6.dp).background(c.expense, RoundedCornerShape(2.dp)))
-                Text("Chi", color = c.muted, fontSize = 9.sp)
-            }
+            Legend(c.income, "Income")
+            Legend(c.expense, "Expense", Modifier.padding(start = 10.dp))
         }
-        Text("Income ${Money.format(st.totalIncome)}  ·  Expense ${Money.format(st.totalExpense)}", color = c.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
-        if (st.bars.all { it.income == 0L && it.expense == 0L }) {
+        val inc = pick?.income ?: st.totalIncome
+        val exp = pick?.expense ?: st.totalExpense
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowStat("In", "+" + Money.format(inc), c.income, Modifier.weight(1f))
+            FlowStat("Out", "−" + Money.format(exp), c.expense, Modifier.weight(1f))
+            val net = inc - exp
+            FlowStat("Net", (if (net < 0) "−" else "+") + Money.format(kotlin.math.abs(net)), if (net < 0) c.expense else c.primary, Modifier.weight(1f))
+        }
+        if (st.peak <= 0L) {
             Text("No data in this period.", color = c.muted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 24.dp))
         } else {
-            CashFlowBars(st.bars, Modifier.padding(top = 12.dp))
+            FlowChart(st, selected) { i -> selected = if (selected == i) -1 else i }
         }
     }
 }
 
 @Composable
-private fun CashFlowBars(bars: List<BarUi>, modifier: Modifier) {
+private fun Legend(color: Color, label: String, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+        Text(label, color = mc.muted, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun FlowStat(label: String, value: String, color: Color, modifier: Modifier) {
     val c = mc
+    Column(modifier.clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = .08f)).padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Text(label, color = c.muted, fontSize = 10.sp)
+        Text(value, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun FlowChart(st: AnalyticsState, selected: Int, onSelect: (Int) -> Unit) {
+    val c = mc
+    val bars = st.bars
     val density = LocalDensity.current
-    val gap = with(density) { 3.dp.toPx() }
-    val radius = remember(gap) { CornerRadius(with(density) { 4.dp.toPx() }) }
-    Column(modifier) {
-        val income = c.income
-        val expense = c.expense
-        val line = c.line
-        Canvas(Modifier.fillMaxWidth().height(110.dp)) { drawCashFlowBars(bars, income, expense, line, gap, radius) }
-        Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-            bars.forEach { Text(it.label, color = c.muted, fontSize = 8.sp, maxLines = 1, modifier = Modifier.weight(1f), textAlign = TextAlign.Center) }
+    val radius = remember(density) { CornerRadius(with(density) { 4.dp.toPx() }) }
+    val reveal = rememberReveal("${st.kind}-${st.label}", ready = true, durationMillis = 800)
+    val income = c.income
+    val expense = c.expense
+    val line = c.line
+    val highlight = c.primarySoft
+    val peak = remember(st.peak) { compact(st.peak) }
+    // The tap detector lives across recompositions: read the latest bar count / callback, never stale captures.
+    val barCount by rememberUpdatedState(bars.size)
+    val select by rememberUpdatedState(onSelect)
+    Column(Modifier.padding(top = 14.dp)) {
+        Row(Modifier.fillMaxWidth().height(150.dp)) {
+            Column(Modifier.width(FlowAxisW).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
+                Text("+$peak", color = c.muted, fontSize = 9.sp, maxLines = 1)
+                Text("0", color = c.muted, fontSize = 9.sp, maxLines = 1)
+                Text("−$peak", color = c.muted, fontSize = 9.sp, maxLines = 1)
+            }
+            Canvas(
+                Modifier.weight(1f).fillMaxHeight().pointerInput(Unit) {
+                    detectTapGestures { o ->
+                        val n = barCount
+                        if (n > 0) select((o.x / (size.width / n)).toInt().coerceIn(0, n - 1))
+                    }
+                },
+            ) { drawFlowBars(bars, income, expense, line, highlight, selected, radius, reveal.value) }
+        }
+        Row(Modifier.fillMaxWidth().padding(start = FlowAxisW, top = 6.dp)) {
+            bars.forEachIndexed { i, b ->
+                Text(
+                    b.label, color = if (i == selected) c.primary else c.muted, fontSize = 8.sp, maxLines = 1,
+                    fontWeight = if (i == selected) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.weight(1f), textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

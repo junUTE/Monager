@@ -1,5 +1,6 @@
 package com.monager.app.ui.categories
 
+import com.monager.app.ui.components.tactile
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,7 +94,7 @@ fun CategoriesScreen(vm: CategoriesViewModel, onBack: () -> Unit) {
                 Row(
                     Modifier.fillMaxWidth().padding(top = 8.dp).height(44.dp)
                         .border(1.dp, c.primary, RoundedCornerShape(13.dp))
-                        .clip(RoundedCornerShape(13.dp)).clickable { newParent = NONE; editId = NEW },
+                        .tactile(RoundedCornerShape(13.dp), scale = .98f) { newParent = NONE; editId = NEW },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
                 ) {
@@ -122,7 +123,8 @@ fun CategoriesScreen(vm: CategoriesViewModel, onBack: () -> Unit) {
 private fun CategoryGroup(node: CategoryNode, open: Boolean, onToggle: () -> Unit, onEdit: (Long) -> Unit, onAddChild: () -> Unit) {
     val c = mc
     val row = node.parent
-    Column(Modifier.fillMaxWidth().raised(radius = 14.dp, depth = 3.dp)) {
+    // Clipped so the header / "add sub-category" ripples follow the card corners.
+    Column(Modifier.fillMaxWidth().raised(radius = 14.dp, depth = 3.dp).clip(RoundedCornerShape(14.dp))) {
         Row(
             Modifier.fillMaxWidth().height(57.dp).clickable(onClick = onToggle).padding(start = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

@@ -23,6 +23,9 @@ class TransactionRepository(private val db: MonagerDatabase) {
     private val dao = db.transactionDao()
     fun recent(limit: Int): Flow<List<TxRow>> = dao.observeRecent(limit)
     fun rowsBetween(from: Long, to: Long): Flow<List<TxRow>> = dao.observeRowsBetween(from, to)
+    fun rowsFiltered(from: Long, to: Long, groupId: Long, categoryId: Long = -1L, byAmount: Boolean = false): Flow<List<TxRow>> =
+        dao.observeRowsFiltered(from, to, groupId, categoryId, byAmount)
+    fun totalsInGroup(groupId: Long, from: Long, to: Long) = dao.observeTotalsInGroup(groupId, from, to)
     /** Balance as of the end of [today]; transactions dated later are "future" and not counted yet. */
     fun totalBalance(today: LocalDate = LocalDate.now()): Flow<Long> =
         dao.observeBalanceUntil(TimeRanges.startOfDay(today.plusDays(1)) - 1)

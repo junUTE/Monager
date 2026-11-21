@@ -37,4 +37,10 @@ class AmountInputTest {
     @Test fun backspaceAndClear() { assertEquals("12", keys("1", "2", "3", "⌫").expression); assertEquals("", keys("1", "2", "C").expression) }
     @Test fun emptyHasNoResult() = assertNull(AmountInput().result)
     @Test fun capsDigitsPerNumber() = assertEquals(12, keys(*Array(15) { "9" }).expression.length)
+
+    private val dots: (Long) -> String = { "%,d".format(java.util.Locale.US, it).replace(',', '.') }
+    @Test fun displayGroupsThousandsInExpressions() =
+        assertEquals("1.250.000 + 30k × 2", AmountInput("1250000+30k×2").display(dots))
+    @Test fun displayKeepsDanglingOperatorAndSmallNumbers() = assertEquals("999 − ", AmountInput("999−").display(dots))
+    @Test fun displayZero() = assertEquals("0", AmountInput("0").display(dots))
 }

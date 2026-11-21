@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -54,7 +55,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.monager.app.R
+import com.monager.app.core.MillisRange
 import com.monager.app.core.Money
+import com.monager.app.ui.components.MIconView
+import com.monager.app.ui.components.TextAction
+import com.monager.app.ui.components.rememberReveal
+import com.monager.app.ui.components.tactile
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.monager.app.ui.HomeState
 import com.monager.app.ui.PeriodSpend
 import com.monager.app.ui.TopSpend
@@ -79,6 +86,7 @@ fun HomeScreen(
     onSeeReports: () -> Unit,
     onSeeTransactions: () -> Unit,
     onEditTx: (Long) -> Unit,
+    onOpenCategory: (id: Long, range: MillisRange, period: String) -> Unit = { _, _, _ -> },
 ) {
     val c = mc
     Box(Modifier.fillMaxSize().background(c.bg)) {
@@ -107,12 +115,13 @@ fun HomeScreen(
             item(key = "report_title", contentType = "title") { Section("This month's report", "View reports", onSeeReports) }
             item(key = "report", contentType = "report") { ReportCard(state) }
 
-            item(key = "top_title", contentType = "title") { Section("Top spending", "View details", onSeeReports) }
-            item(key = "top", contentType = "top") { TopSpendingCard(state) }
+            item(key = "top_title", contentType = "title") { Section("Top spending") }
+            item(key = "top", contentType = "top") { TopSpendingCard(state, onOpenCategory) }
 
             item(key = "recent_title", contentType = "title") { Section("Recent transactions", "See all", onSeeTransactions) }
             item(key = "recent", contentType = "recent") {
-                Column(Modifier.fillMaxWidth().raised(radius = 18.dp, depth = 4.dp).padding(vertical = 4.dp)) {
+                // Clipped so the first/last row's ripple follows the card's rounded corners.
+                Column(Modifier.fillMaxWidth().raised(radius = 18.dp, depth = 4.dp).clip(RoundedCornerShape(18.dp)).padding(vertical = 4.dp)) {
                     if (state.loaded && state.recent.isEmpty()) {
                         Text("No transactions yet. Tap + to add your first one.", color = c.muted, fontSize = 12.sp, modifier = Modifier.padding(16.dp))
                     }
@@ -124,11 +133,12 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Section(title: String, action: String, onClick: () -> Unit) {
+private fun Section(title: String, action: String? = null, onClick: (() -> Unit)? = null) {
     val c = mc
-    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+    // Same minimum height with or without an action, so all section titles line up.
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp).heightIn(min = 26.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Text(title, color = c.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        Text(action, color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onClick).padding(vertical = 4.dp))
+        if (action != null) TextAction(action, c.primary, onClick)
     }
 }
 
@@ -143,21 +153,27 @@ private fun ReportCard(state: HomeState) {
             if (page == 0) TrendPage(state) else ComparePage(state)
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "‹", color = c.primary.copy(alpha = if (pager.currentPage > 0) 1f else .3f), fontSize = 26.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f).clickable { scope.launch { pager.animateScrollToPage(0) } },
-            )
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                PagerArrow(MIcon.Back, pager.currentPage > 0) { scope.launch { pager.animateScrollToPage(0) } }
+            }
             Text(if (pager.currentPage == 0) "This month's trend" else "Spending comparison", color = c.primary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.weight(4f))
-            Text(
-                "›", color = c.primary.copy(alpha = if (pager.currentPage < 1) 1f else .3f), fontSize = 26.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f).clickable { scope.launch { pager.animateScrollToPage(1) } },
-            )
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                PagerArrow(MIcon.ChevronRight, pager.currentPage < 1) { scope.launch { pager.animateScrollToPage(1) } }
+            }
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.Center) {
             repeat(2) { i ->
                 Box(Modifier.padding(horizontal = 3.dp).size(6.dp).clip(CircleShape).background(if (i == pager.currentPage) c.primary else c.muted.copy(alpha = .35f)))
             }
         }
+    }
+}
+
+@Composable
+private fun PagerArrow(icon: MIcon, enabled: Boolean, onClick: () -> Unit) {
+    val c = mc
+    Box(Modifier.size(36.dp).tactile(CircleShape, enabled = enabled, scale = .85f, onClick = onClick), contentAlignment = Alignment.Center) {
+        MIconView(icon, c.primary.copy(alpha = if (enabled) 1f else .3f), size = 22.dp)
     }
 }
 
@@ -202,7 +218,8 @@ private fun TrendPage(state: HomeState) {
                         }
                     }
                 }
-                Canvas(Modifier.weight(1f).fillMaxHeight()) { drawTrendLine(values, days, gridLines, path, area, color, fill, grid, lineStroke, dash) }
+                val reveal = rememberReveal(tab, ready = values.isNotEmpty(), durationMillis = 900)
+                Canvas(Modifier.weight(1f).fillMaxHeight()) { drawTrendLine(values, days, gridLines, path, area, color, fill, grid, lineStroke, dash, reveal.value) }
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp, start = if (values.isEmpty()) 0.dp else AxisW), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -215,7 +232,7 @@ private fun TrendPage(state: HomeState) {
 @Composable
 private fun TrendTab(label: String, amount: Long, color: Color, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = mc
-    Column(modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.tactile(RoundedCornerShape(10.dp), scale = .96f, onClick = onClick).padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, color = if (selected) c.text else c.muted, fontSize = 12.sp)
         Text(Money.format(amount), color = color, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(2.dp).background(if (selected) color else c.surface2))
@@ -240,7 +257,8 @@ private fun ComparePage(state: HomeState) {
         val curFrac = if (max <= 0) 0f else p.current.toFloat() / max
         val barColor = c.surface2
         val fill = c.primary
-        Canvas(Modifier.fillMaxWidth().padding(top = 10.dp).height(90.dp)) { drawCompareBars(prevFrac, curFrac, p.previous > 0, p.current > 0, barColor, fill) }
+        val reveal = rememberReveal(period, ready = state.loaded)
+        Canvas(Modifier.fillMaxWidth().padding(top = 10.dp).height(90.dp)) { drawCompareBars(prevFrac, curFrac, p.previous > 0, p.current > 0, barColor, fill, reveal.value) }
         Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
             Text(labels.first, color = c.muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
             Text(labels.second, color = c.muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
@@ -267,10 +285,12 @@ private fun ChangeBadge(p: PeriodSpend) {
 }
 
 @Composable
-private fun TopSpendingCard(state: HomeState) {
+private fun TopSpendingCard(state: HomeState, onOpenCategory: (Long, MillisRange, String) -> Unit) {
     val c = mc
     var period by rememberSaveable { mutableIntStateOf(1) }
-    val top = (if (period == 0) state.week else state.month).top
+    val p = if (period == 0) state.week else state.month
+    val top = p.top
+    val label = if (period == 0) "This week" else "This month"
     Column(Modifier.fillMaxWidth().raised(radius = 18.dp, depth = 4.dp).padding(16.dp)) {
         SegmentedTabs(Periods, period, { period = it })
         if (top.isEmpty()) {
@@ -279,22 +299,30 @@ private fun TopSpendingCard(state: HomeState) {
             }
         } else {
             val max = top.first().amount.coerceAtLeast(1)
-            top.forEach { TopRow(it, it.amount.toFloat() / max) }
+            Column(Modifier.padding(top = 6.dp)) {
+                top.forEach { t -> TopRow(t, t.amount.toFloat() / max, p.current, period) { onOpenCategory(t.id, p.range, label) } }
+            }
         }
     }
 }
 
+/** Tappable: opens the category's transactions for the same week / month. */
 @Composable
-private fun TopRow(t: TopSpend, frac: Float) {
+private fun TopRow(t: TopSpend, frac: Float, periodTotal: Long, revealKey: Int, onClick: () -> Unit) {
     val c = mc
-    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(
+        Modifier.fillMaxWidth().tactile(RoundedCornerShape(12.dp), scale = .98f, onClick = onClick).padding(horizontal = 4.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         CategoryIcon(t.icon, t.tone, round = true)
         Column(Modifier.weight(1f)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(t.name, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (periodTotal > 0) Text("${t.amount * 100 / periodTotal}%  ", color = c.muted, fontSize = 11.sp, maxLines = 1)
                 Text(Money.format(t.amount), color = c.text, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
             }
-            AppProgress(frac, thumb = false, fillColor = t.tone.fg)
+            AppProgress(frac, thumb = false, fillColor = t.tone.fg, revealKey = revealKey)
         }
+        MIconView(MIcon.ChevronRight, c.muted, size = 16.dp)
     }
 }

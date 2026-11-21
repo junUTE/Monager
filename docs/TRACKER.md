@@ -1,7 +1,9 @@
 # Monager – Progress Tracker
 
 Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[!]` blocked. Update this file with every PR.
-Last updated: 2026-11-05 (M0–M8 review pass; M9 started)
+Last updated: 2026-11-21 (v0.5.1 UI update)
+
+**v0.5.1 (code 14):** calculator shows thousands separators inside expressions; tactile numpad (deeper dip, tint flash, key-click haptic, amount "pop"); one shared press system (`Press.kt`: `rememberPress`, `pressScale`, `tactile`) so every button sinks/springs and ripples follow rounded corners; chart entrance animations (trend, compare bars, donut, cash flow, budget ring, progress bars — draw-phase progress, saved per item, 0 B/frame); category drill-down screen (from Home top spending, Reports, Transactions filter) with sub-category split and Newest/Largest sort; Transactions: Reports shortcut + category filter chips; Reports redesign (net cash-flow hero, prominent tappable categories, diverging cash-flow chart with tap-to-inspect); Budgets redesign (status, per-day allowance, over-100% second ring lap and overflow bars); 44 new category icons, picker grouped by theme, emoji fallback to vectors on old fonts.
 
 ## Summary
 

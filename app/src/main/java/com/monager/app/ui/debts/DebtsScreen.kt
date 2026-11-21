@@ -1,5 +1,6 @@
 package com.monager.app.ui.debts
 
+import com.monager.app.ui.components.tactile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -232,7 +233,7 @@ private fun PaySheet(d: DebtRow, lend: Boolean, onPay: (amount: Long, record: Bo
         }
         if (amount > d.remaining) Text("Exceeds remaining amount", color = c.expense, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         Row(
-            Modifier.fillMaxWidth().padding(top = 12.dp).clickable { record = !record },
+            Modifier.fillMaxWidth().padding(top = 12.dp).tactile(RoundedCornerShape(10.dp), scale = .98f) { record = !record }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Box(
@@ -286,5 +287,5 @@ private fun Label(text: String) {
 private fun QuickChip(label: String, onClick: () -> Unit) {
     val c = mc
     Text(label, color = c.primary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(c.primarySoft).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp))
+        modifier = Modifier.tactile(RoundedCornerShape(20.dp), scale = .94f, onClick = onClick).background(c.primarySoft).padding(horizontal = 12.dp, vertical = 7.dp))
 }

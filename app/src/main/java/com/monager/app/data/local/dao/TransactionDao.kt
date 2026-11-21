@@ -53,6 +53,33 @@ interface TransactionDao {
     @Query("$ROW_SELECT WHERE t.timestamp BETWEEN :from AND :to ORDER BY t.timestamp DESC, t.id DESC LIMIT 1000")
     fun observeRowsBetween(from: Long, to: Long): Flow<List<TxRow>>
 
+    /**
+     * One window filtered to a parent category group ([groupId] or any of its children; < 0 = no filter) and optionally
+     * one exact category ([categoryId] < 0 = any). [byAmount] sorts largest first instead of newest first.
+     */
+    @Query(
+        """
+        $ROW_SELECT
+        WHERE t.timestamp BETWEEN :from AND :to
+          AND (:groupId < 0 OR c.id = :groupId OR c.parentId = :groupId)
+          AND (:categoryId < 0 OR c.id = :categoryId)
+        ORDER BY CASE WHEN :byAmount THEN t.amount END DESC, t.timestamp DESC, t.id DESC
+        LIMIT 1000
+        """,
+    )
+    fun observeRowsFiltered(from: Long, to: Long, groupId: Long, categoryId: Long, byAmount: Boolean): Flow<List<TxRow>>
+
+    /** Totals per exact category inside one parent group (the parent itself plus each child), largest first. */
+    @Query(
+        """
+        SELECT t.categoryId AS groupId, SUM(t.amount) AS total
+        FROM transactions t JOIN categories c ON c.id = t.categoryId
+        WHERE (c.id = :groupId OR c.parentId = :groupId) AND t.timestamp BETWEEN :from AND :to
+        GROUP BY t.categoryId ORDER BY total DESC
+        """,
+    )
+    fun observeTotalsInGroup(groupId: Long, from: Long, to: Long): Flow<List<GroupTotal>>
+
     /** Income minus expense minus savings across active wallets; transfers net to zero. */
     @Query(
         """

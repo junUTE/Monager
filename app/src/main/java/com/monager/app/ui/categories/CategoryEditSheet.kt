@@ -1,5 +1,6 @@
 package com.monager.app.ui.categories
 
+import com.monager.app.ui.components.tactile
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -104,9 +105,8 @@ fun CategoryEditSheet(
                 Tone.entries.forEach { t ->
                     val on = t.name == tone
                     Box(
-                        Modifier.size(28.dp).clip(CircleShape).background(t.fg)
-                            .then(if (on) Modifier.border(3.dp, c.text.copy(alpha = .85f), CircleShape) else Modifier)
-                            .clickable { tone = t.name },
+                        Modifier.size(28.dp).tactile(CircleShape, scale = .85f) { tone = t.name }.background(t.fg)
+                            .then(if (on) Modifier.border(3.dp, c.text.copy(alpha = .85f), CircleShape) else Modifier),
                     )
                 }
             }

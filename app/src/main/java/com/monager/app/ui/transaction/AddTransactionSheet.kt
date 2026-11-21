@@ -38,6 +38,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
+import com.monager.app.ui.components.tactile
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -158,16 +165,32 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
                 Text(if (editing) "Edit transaction" else "Add transaction", color = c.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 Text(
                     "Save", color = c.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.alpha(if (canSave) 1f else .4f).clickable(enabled = canSave) { save(vm, original, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay)) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } }.padding(8.dp),
+                    modifier = Modifier.alpha(if (canSave) 1f else .4f).tactile(RoundedCornerShape(10.dp), enabled = canSave, scale = .92f) { save(vm, original, txType, amount, categoryId, vaultId, wallet!!.id, note, LocalDate.ofEpochDay(epochDay)) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClose() } }.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
             SegmentedTabs(Types, type, { type = it; parentId = -1; childId = -1 })
 
-            // Amount display, right-aligned. While an expression is being typed it is shown as typed; the result only
-            // appears after pressing "=" (which collapses the expression into a plain number).
+            // Amount display, right-aligned. While an expression is being typed it is shown as typed (with thousands
+            // separators on every number); the result only appears after pressing "=" (which collapses it into one number).
             val pending = input.hasOperator
-            val shown = remember(expression) { expression.replace("+", " + ").replace("−", " − ").replace("×", " × ").replace("÷", " ÷ ") }
-            Row(Modifier.fillMaxWidth().height(70.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+            val shown = input.display(Money::plain)
+            // Each key press gives the amount a small spring "pop" (layer phase only: no relayout).
+            val pulse = remember { Animatable(0f) }
+            LaunchedEffect(expression) {
+                if (expression.isNotEmpty()) {
+                    pulse.snapTo(1f)
+                    pulse.animateTo(0f, spring(dampingRatio = .4f, stiffness = 700f))
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().height(70.dp).graphicsLayer {
+                    val p = pulse.value
+                    scaleX = 1f + .045f * p
+                    scaleY = 1f + .045f * p
+                    transformOrigin = TransformOrigin(1f, .5f)
+                },
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End,
+            ) {
                 if (pending) {
                     Text(
                         shown, color = c.text, fontSize = if (shown.length <= 14) 34.sp else if (shown.length <= 22) 28.sp else 22.sp,
@@ -198,8 +221,8 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
                         items(selectedNode.children, key = { it.id }, contentType = { "child" }) { ch ->
                             val on = ch.id == childId
                             Row(
-                                Modifier.clip(RoundedCornerShape(20.dp)).background(if (on) c.primary else c.surface2)
-                                    .clickable { childId = if (on) -1 else ch.id }.padding(start = 9.dp, end = 11.dp, top = 5.dp, bottom = 5.dp),
+                                Modifier.tactile(RoundedCornerShape(20.dp), scale = .93f) { childId = if (on) -1 else ch.id }
+                                    .background(if (on) c.primary else c.surface2).padding(start = 9.dp, end = 11.dp, top = 5.dp, bottom = 5.dp),
                                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
                             ) {
                                 EmojiIcon(MIcon.fromKey(ch.iconKey), if (on) c.onPrimary else Tone.fromKey(ch.toneKey).fg, size = 14.dp)
@@ -238,34 +261,26 @@ fun AddTransactionSheet(vm: AddTransactionViewModel, initialType: Int, onClose: 
             }
 
             Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                val press = { k: String -> expression = AmountInput(expression).press(k).expression }
+                val view = LocalView.current
+                val press = { k: String ->
+                    // Light key click (respects the system "touch feedback" setting), then the state update.
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    expression = AmountInput(expression).press(k).expression
+                }
                 KeyRows.forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { k ->
-                            RaisedBox(Modifier.weight(1f).height(40.dp), radius = 10.dp, onClick = { press(k) }) {
-                                when (k) {
-                                    "⌫" -> MIconView(MIcon.Backspace, c.text, size = 22.dp)
-                                    else -> Text(k, color = if (k in Operators) c.primary else c.text, fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
-                                }
-                            }
-                        }
+                        row.forEach { k -> CalcKey(k, Modifier.weight(1f).height(40.dp)) { press(k) } }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(3f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         BottomLeft.forEach { row ->
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                row.forEach { k ->
-                                    RaisedBox(Modifier.weight(if (k == "0") 2f else 1f).height(40.dp), radius = 10.dp, onClick = { press(k) }) {
-                                        Text(k, color = c.text, fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
-                                    }
-                                }
+                                row.forEach { k -> CalcKey(k, Modifier.weight(if (k == "0") 2f else 1f).height(40.dp)) { press(k) } }
                             }
                         }
                     }
-                    RaisedBox(Modifier.weight(1f).height(87.dp), radius = 10.dp, brush = c.heroBrush, onClick = { press("=") }) {
-                        Text("=", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    }
+                    CalcKey("=", Modifier.weight(1f).height(87.dp)) { press("=") }
                 }
             }
             if (pickingDate) DatePickerSheet(epochDay, { epochDay = it }, { pickingDate = false })
@@ -311,11 +326,34 @@ private fun save(vm: AddTransactionViewModel, original: TransactionEntity?, type
     if (original != null) vm.update(tx, onDone) else vm.save(tx, onDone)
 }
 
+/**
+ * One numpad key: dips deeper than a normal button (scale .88 + sink), flashes a tint (primary for digits, red for C,
+ * white on the "=" key) and springs back with a little overshoot. All of it is layer/draw-phase animation.
+ */
+@Composable
+private fun CalcKey(k: String, modifier: Modifier, onClick: () -> Unit) {
+    val c = mc
+    val equals = k == "="
+    RaisedBox(
+        modifier, radius = 10.dp, brush = if (equals) c.heroBrush else null, onClick = onClick, pressScale = .88f,
+        pressTint = when { equals -> Color.White; k == "C" -> c.expense; else -> c.primary },
+    ) {
+        when (k) {
+            "⌫" -> MIconView(MIcon.Backspace, c.text, size = 22.dp)
+            "=" -> Text("=", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            else -> Text(
+                k, color = when { k == "C" -> c.expense; k in Operators -> c.primary; else -> c.text },
+                fontSize = 17.sp, fontWeight = if (k in Operators || k == "C") FontWeight.Bold else FontWeight.Medium, textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
 @Composable
 private fun PickItem(icon: MIcon, tone: Tone, label: String, selected: Boolean, onClick: () -> Unit) {
     val c = mc
     Column(
-        Modifier.width56().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
+        Modifier.width56().tactile(RoundedCornerShape(12.dp), scale = .9f, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(Modifier.clip(RoundedCornerShape(12.dp)).then(if (selected) Modifier.border(2.dp, c.primary, RoundedCornerShape(12.dp)) else Modifier)) {

@@ -12,6 +12,30 @@ data class AmountInput(val expression: String = "") {
     /** True when the expression has an operator, i.e. a secondary "50k + 30k" line is worth showing. */
     val hasOperator: Boolean get() = expression.any { it in OPS }
 
+    /**
+     * The expression as shown on screen: every number gets thousands separators via [plain] and operators are spaced,
+     * e.g. "50000+30k" -> "50.000 + 30k". The "k" suffix stays as typed.
+     */
+    fun display(plain: (Long) -> String): String {
+        val out = StringBuilder(expression.length + 8)
+        var i = 0
+        while (i < expression.length) {
+            val ch = expression[i]
+            when {
+                ch.isDigit() -> {
+                    var j = i
+                    while (j < expression.length && expression[j].isDigit()) j++
+                    val digits = expression.substring(i, j)
+                    out.append(digits.toLongOrNull()?.let(plain) ?: digits)
+                    i = j
+                }
+                ch in OPS -> { out.append(' ').append(ch).append(' '); i++ }
+                else -> { out.append(ch); i++ }
+            }
+        }
+        return out.toString()
+    }
+
     fun press(key: String): AmountInput = when (key) {
         "C" -> AmountInput()
         "⌫" -> AmountInput(expression.dropLast(1))

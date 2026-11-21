@@ -50,6 +50,10 @@ import com.monager.app.ui.components.LocalOpenSheets
 import com.monager.app.ui.components.MIcon
 import com.monager.app.ui.components.MIconView
 import com.monager.app.ui.components.RaisedBox
+import com.monager.app.ui.components.pressScale
+import com.monager.app.ui.components.rememberPress
+import com.monager.app.ui.categoryreport.CategoryReportRequest
+import com.monager.app.ui.categoryreport.CategoryReportScreen
 import com.monager.app.ui.debts.DebtsScreen
 import com.monager.app.ui.home.HomeScreen
 import com.monager.app.ui.settings.SettingsScreen
@@ -76,12 +80,20 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
     var addType by rememberSaveable { mutableIntStateOf(-1) } // -1 = sheet closed
     var editTxId by rememberSaveable { mutableLongStateOf(-1L) } // >= 0: editing that transaction in the same sheet
     val openSheets = remember { mutableIntStateOf(0) }
+    // Category report (drill-down from Home top spending, Reports or the Transactions filter); groupId < 0 = closed.
+    var catGroup by rememberSaveable { mutableLongStateOf(-1L) }
+    var catFrom by rememberSaveable { mutableLongStateOf(0L) }
+    var catTo by rememberSaveable { mutableLongStateOf(0L) }
+    var catPeriod by rememberSaveable { mutableStateOf("") }
+    val openCategory = { id: Long, from: Long, to: Long, period: String -> catFrom = from; catTo = to; catPeriod = period; catGroup = id }
+    val inCategoryReport = catGroup >= 0
 
-    val inSub = inCategories || inStats || inDebts
+    val inSub = inCategories || inStats || inDebts || inCategoryReport
     // System back: close the add sheet, then the open sub-screen.
     BackHandler(enabled = addType >= 0 || editTxId >= 0 || inSub) {
         when {
             addType >= 0 || editTxId >= 0 -> { addType = -1; editTxId = -1 }
+            inCategoryReport -> catGroup = -1L
             inCategories -> inCategories = false
             inStats -> inStats = false
             else -> inDebts = false
@@ -98,14 +110,23 @@ fun MonagerNavHost(container: AppContainer, dark: Boolean) {
     CompositionLocalProvider(LocalOpenSheets provides openSheets) {
     Box(Modifier.fillMaxSize().background(c.bg)) {
         when {
+            inCategoryReport -> CategoryReportScreen(
+                viewModel(factory = factory), CategoryReportRequest(catGroup, catFrom, catTo, catPeriod),
+                onBack = { catGroup = -1L }, onEditTx = { editTxId = it },
+            )
             inCategories -> CategoriesScreen(viewModel(factory = factory), onBack = { inCategories = false })
-            inStats -> StatsScreen(viewModel(factory = factory), onBack = { inStats = false })
+            inStats -> StatsScreen(viewModel(factory = factory), onBack = { inStats = false }, onOpenCategory = openCategory)
             inDebts -> DebtsScreen(viewModel(factory = factory), onBack = { inDebts = false })
             tab == Tab.Home.ordinal -> HomeScreen(
                 homeState, hideBalance, { hideBalance = !hideBalance },
                 onSeeReports = { inStats = true }, onSeeTransactions = { tab = Tab.Transactions.ordinal }, onEditTx = { editTxId = it },
+                onOpenCategory = { id, r, period -> openCategory(id, r.from, r.to, period) },
             )
-            tab == Tab.Transactions.ordinal -> TransactionsScreen(viewModel(factory = factory), hideBalance, onEdit = { editTxId = it })
+            tab == Tab.Transactions.ordinal -> TransactionsScreen(
+                viewModel(factory = factory), hideBalance, onEdit = { editTxId = it },
+                onOpenReports = { inStats = true },
+                onOpenCategory = { id, r, period -> openCategory(id, r.from, r.to, period) },
+            )
             tab == Tab.Budgets.ordinal -> BudgetsScreen(viewModel(factory = factory))
             else -> SettingsScreen(
                 viewModel(factory = factory),
@@ -151,14 +172,17 @@ private fun NavItem(tab: Tab, selected: Int, onSelect: (Int) -> Unit, modifier: 
     val c = mc
     val on = tab.ordinal == selected
     val tint = if (on) c.primary else c.muted.copy(alpha = .75f)
+    // Press feedback: the icon pill dips and springs back (layer phase only); no full-height square ripple.
+    val press = rememberPress()
     Column(
-        modifier.height(64.dp).clickable(interactionSource = MutableInteractionSource(), indication = null) { onSelect(tab.ordinal) },
+        modifier.height(64.dp).clickable(interactionSource = press.source, indication = null) { onSelect(tab.ordinal) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         // Selected tab: tinted pill behind the icon (flat fill, no shadow) plus the primary colour.
         Box(
-            Modifier.clip(RoundedCornerShape(14.dp)).background(if (on) c.primarySoft else Color.Transparent).padding(horizontal = 18.dp, vertical = 4.dp),
+            Modifier.pressScale(press, .82f).clip(RoundedCornerShape(14.dp))
+                .background(if (on) c.primarySoft else Color.Transparent).padding(horizontal = 18.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center,
         ) { MIconView(tab.icon, tint) }
         Text(tab.label, color = tint, fontSize = 9.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.SemiBold, maxLines = 1)

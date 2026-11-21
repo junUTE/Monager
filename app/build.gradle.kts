@@ -15,8 +15,8 @@ android {
         applicationId = "com.monager.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.4.1"
+        versionCode = 14
+        versionName = "0.5.1"
         buildConfigField("String", "RELEASE_DATE", "\"${LocalDate.now()}\"")
     }
 
