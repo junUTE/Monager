@@ -9,6 +9,7 @@ import com.monager.app.data.local.entity.BudgetEntity
 import com.monager.app.data.local.entity.DebtEntity
 import com.monager.app.data.local.entity.TransactionEntity
 import com.monager.app.data.local.entity.TxType
+import com.monager.app.data.local.entity.VaultEntity
 import com.monager.app.data.local.entity.WalletEntity
 import com.monager.app.data.repository.DebtRepository
 import kotlinx.coroutines.flow.first
@@ -196,6 +197,93 @@ class BackupTest {
         val table = runBlocking { r.readTable(kind, ByteArrayInputStream(out.toByteArray())) }
         assertEquals(6, runBlocking { r.importTable(table) }.imported)
         assertTrue(snapshotOf(fresh).transactions.any { it.note == "=HYPERLINK(\"x\")" }) // no apostrophe artefacts in xlsx
+    }
+
+    // ---------- Excel: budgets and savings sheets ----------
+    private fun populatePlans() = runBlocking {
+        db.budgetDao().upsert(BudgetEntity(categoryId = 1, month = 202611, limitAmount = 3_000_000)) // parent "Food"
+        db.budgetDao().upsert(BudgetEntity(categoryId = 104, month = 202612, limitAmount = 500_000)) // sub "Beverages"
+        val trip = db.vaultDao().upsert(VaultEntity(name = "Đà Lạt trip", target = 8_000_000, iconKey = "Plane", deadline = LocalDate.of(2026, 11, 30).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()))
+        db.vaultDao().upsert(VaultEntity(name = "Old goal", target = 1_000_000, archived = true))
+        db.transactionDao().insert(TransactionEntity(walletId = 1, type = TxType.SAVING, amount = 2_000_000, vaultId = trip, timestamp = day(8)))
+    }
+
+    private fun xlsxBytes(): ByteArray = ByteArrayOutputStream().also { runBlocking { repo.exportXlsx(it) } }.toByteArray()
+
+    private fun importXlsx(into: MonagerDatabase, bytes: ByteArray): ImportResult {
+        val r = BackupRepository(into)
+        return runBlocking { r.importTables(r.readTables(FileKind.XLSX, ByteArrayInputStream(bytes))) }
+    }
+
+    /** Budgets keyed by (month, category path) so ids do not matter. */
+    private fun budgetsOf(d: MonagerDatabase) = snapshotOf(d).let { s ->
+        val cats = s.categories.associateBy { it.id }
+        s.budgets.map { b ->
+            val c = b.categoryId?.let { cats.getValue(it) }
+            Triple(b.month, listOfNotNull(c?.parentId?.let { cats.getValue(it).name }, c?.name).joinToString("/"), b.limitAmount)
+        }.toSet()
+    }
+
+    private fun vaultsOf(d: MonagerDatabase) = snapshotOf(d).vaults.map { listOf(it.name, it.target, it.iconKey, it.deadline, it.archived) }.toSet()
+
+    @Test fun excelHasThreeSheetsInOrder() {
+        populate(); populatePlans()
+        val sheets = XlsxCodec.readAll(ByteArrayInputStream(xlsxBytes()))
+        assertEquals(3, sheets.size)
+        assertEquals(TransactionTable.HEADER, sheets[0].first())
+        assertEquals(PlanTables.BudgetTable.HEADER, sheets[1].first())
+        assertEquals(PlanTables.SavingsTable.HEADER, sheets[2].first())
+        assertTrue(sheets[1].contains(listOf("2026-11", PlanTables.BudgetTable.OVERALL, "", "10000000")))
+        assertTrue(sheets[1].contains(listOf("2026-12", "Food", "Beverages", "500000")))
+        assertTrue(sheets[2].contains(listOf("Đà Lạt trip", "8000000", "2000000", "2026-11-30", "Plane", "No")))
+    }
+
+    @Test fun excelRoundTripRestoresBudgetsAndSavingsGoals() {
+        populate(); populatePlans()
+        val fresh = newDb(seed = false)
+        val r = importXlsx(fresh, xlsxBytes())
+        assertEquals(0, r.errors)
+        assertEquals(3, r.budgets); assertEquals(3, r.savings) // Emergency fund, Đà Lạt trip, Old goal
+        assertEquals(budgetsOf(db), budgetsOf(fresh))
+        assertEquals(vaultsOf(db), vaultsOf(fresh))
+        // Saving transactions are attached to the imported goal, so the saved amount matches.
+        val saved = { d: MonagerDatabase -> runBlocking { d.backupDao().vaultExportRows() }.associate { it.vault.name to it.saved } }
+        assertEquals(saved(db), saved(fresh))
+    }
+
+    @Test fun reImportingExcelUpdatesInsteadOfDuplicating() {
+        populate(); populatePlans()
+        val before = snapshotOf(db)
+        val r = importXlsx(db, xlsxBytes())
+        assertEquals(0, r.imported); assertEquals(0, r.errors)
+        val after = snapshotOf(db)
+        assertEquals(before.budgets, after.budgets)
+        assertEquals(before.vaults, after.vaults)
+        assertEquals(before.transactions.size, after.transactions.size)
+    }
+
+    @Test fun budgetAndSavingsTablesImportFromCsvAndUpdateExisting() {
+        val budgets = listOf(
+            listOf("Tháng", "Danh mục", "Danh mục con", "Hạn mức"),
+            listOf("11/2026", "", "", "9.000.000"),
+            listOf("2026-11", "Food", "", "2,500,000"),
+            listOf("2026-13", "Food", "", "1"),
+            listOf("2026-11", "Pets", "", "400000"), // unknown category is created
+        )
+        val savings = listOf(listOf("Name", "Target"), listOf("Emergency fund", "60000000"), listOf("", "5"))
+        val r = runBlocking { repo.importTables(listOf(budgets, savings)) }
+        assertEquals(3, r.budgets); assertEquals(1, r.savings); assertEquals(2, r.errors); assertEquals(1, r.createdCategories)
+        assertTrue(r.firstErrors.any { it.startsWith("Budgets, line 4:") })
+        assertTrue(r.firstErrors.any { it.startsWith("Savings, line 3:") })
+        assertEquals(60_000_000, snapshotOf(db).vaults.single { it.id == 1L }.target) // seeded goal updated, not duplicated
+        assertTrue(Triple(202611, "", 9_000_000L) in budgetsOf(db))
+        assertTrue(Triple(202611, "Pets", 400_000L) in budgetsOf(db))
+    }
+
+    @Test fun parseMonthFormats() {
+        val p = PlanTables.BudgetTable::parseMonth
+        assertEquals(202611, p("2026-11")); assertEquals(202611, p("11/2026")); assertEquals(202603, p("3/2026"))
+        assertEquals(202611, p("202611")); assertEquals(202611, p("2026-11-15")); assertEquals(null, p("2026-13")); assertEquals(null, p("abc"))
     }
 
     @Test fun fileKindDetection() {

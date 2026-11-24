@@ -87,17 +87,19 @@ fun SettingsScreen(vm: SettingsViewModel, onOpenCategories: () -> Unit, onOpenDe
 
             item(key = "t2") { Box(Modifier.padding(top = 6.dp)) { SectionTitle("Backup & export") } }
             item(key = "json") { Row3("Full backup (JSON)", "Transactions, categories, budgets, debts, savings goals", MIcon.Wallet, enabled = !ui.busy) { saveJson.launch("monager-backup-$stamp.json") } }
-            item(key = "csv") { Row3("Export transactions (CSV)", "Opens in Excel, Google Sheets", MIcon.Receipt, enabled = !ui.busy) { saveCsv.launch("monager-transactions-$stamp.csv") } }
-            item(key = "xlsx") { Row3("Export transactions (Excel .xlsx)", "Standard Excel file, amounts as numbers", MIcon.Chart, enabled = !ui.busy) { saveXlsx.launch("monager-transactions-$stamp.xlsx") } }
+            item(key = "csv") { Row3("Export transactions (CSV)", "Transactions only. Opens in Excel, Google Sheets", MIcon.Receipt, enabled = !ui.busy) { saveCsv.launch("monager-transactions-$stamp.csv") } }
+            item(key = "xlsx") { Row3("Export to Excel (.xlsx)", "Sheets: Transactions, Budgets, Savings", MIcon.Chart, enabled = !ui.busy) { saveXlsx.launch("monager-$stamp.xlsx") } }
 
             item(key = "t3") { Box(Modifier.padding(top = 6.dp)) { SectionTitle("Import data") } }
             item(key = "import") {
-                Row3("Import from file", "JSON (restore), CSV or Excel (adds transactions)", MIcon.Transfer, enabled = !ui.busy) { open.launch(arrayOf("*/*")) }
+                Row3("Import from file", "JSON (restore), CSV or Excel (adds and updates)", MIcon.Transfer, enabled = !ui.busy) { open.launch(arrayOf("*/*")) }
             }
             item(key = "hint") {
                 Text(
-                    "CSV/Excel needs these columns: Date, Type, Amount, Category, Subcategory, Wallet, To wallet, Vault, Note." +
-                        "Importing the same file again will not create duplicate transactions. Missing category/wallet names will be created.",
+                    "Each sheet is recognised by its header row. Transactions: Date, Type, Amount, Category, Subcategory, Wallet, To wallet, Vault, Note. " +
+                        "Budgets: Month, Category, Subcategory, Limit. Savings: Name, Target, Saved, Deadline, Icon, Archived. " +
+                        "Importing the same file again will not create duplicate transactions; budgets and savings goals with the same name are updated. " +
+                        "Missing category/wallet names will be created.",
                     color = c.muted, fontSize = 10.sp,
                 )
             }
@@ -166,7 +168,8 @@ fun SettingsScreen(vm: SettingsViewModel, onOpenCategories: () -> Unit, onOpenDe
         ui.pendingRestore?.let { r ->
             SimpleSheet("Restore from backup?", "Current data will be completely replaced", onClose = vm::cancelRestore) {
                 Text(
-                    "The file has ${r.transactions} transactions, ${r.categories} categories, ${r.wallets} wallets, ${r.debts} debts. " +
+                    "The file has ${r.transactions} transactions, ${r.categories} categories, ${r.wallets} wallets, " +
+                        "${r.budgets} budgets, ${r.savings} savings goals, ${r.debts} debts. " +
                         "All data on this device will be deleted and replaced with the file contents. This cannot be undone.",
                     color = c.text, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp),
                 )

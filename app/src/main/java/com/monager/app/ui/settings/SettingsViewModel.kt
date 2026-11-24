@@ -81,14 +81,18 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
                 FileKind.JSON -> {
                     val snap = c.backup.readSnapshot(stream)
                     pendingSnapshot = snap
-                    _ui.update { it.copy(pendingRestore = RestoreResult(snap.transactions.size, snap.categories.size, snap.wallets.size, snap.debts.size)) }
+                    _ui.update {
+                        it.copy(pendingRestore = RestoreResult(snap.transactions.size, snap.categories.size, snap.wallets.size, snap.debts.size, snap.budgets.size, snap.vaults.size))
+                    }
                     null
                 }
                 else -> {
-                    val result = c.backup.importTable(c.backup.readTable(kind, stream))
+                    val result = c.backup.importTables(c.backup.readTables(kind, stream))
                     buildString {
                         append("Imported ${result.imported} transactions")
                         if (result.duplicates > 0) append(", skipped ${result.duplicates} existing rows")
+                        if (result.budgets > 0) append(", ${result.budgets} budgets")
+                        if (result.savings > 0) append(", ${result.savings} savings goals")
                         if (result.createdCategories > 0) append(", created ${result.createdCategories} new categories")
                         append('.')
                         if (result.errors > 0) {
@@ -108,7 +112,8 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
         pendingSnapshot = null
         run("Could not restore") {
             val r = c.backup.restore(snap)
-            "Restored ${r.transactions} transactions, ${r.categories} categories, ${r.wallets} wallets, ${r.debts} debts."
+            "Restored ${r.transactions} transactions, ${r.categories} categories, ${r.wallets} wallets, " +
+                "${r.budgets} budgets, ${r.savings} savings goals, ${r.debts} debts."
         }
     }
 

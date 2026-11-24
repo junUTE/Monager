@@ -24,6 +24,9 @@ data class ExportRow(
     val note: String,
 )
 
+/** A budget with readable names: [topName] null = overall monthly budget; [subName] set when the budget is on a subcategory. */
+data class BudgetExportRow(val month: Int, val limitAmount: Long, val topName: String?, val subName: String?)
+
 data class TableCounts(val transactions: Int, val categories: Int, val wallets: Int, val debts: Int)
 
 /** Bulk read/replace access used only by backup, restore and import/export. */
@@ -69,6 +72,28 @@ interface BackupDao {
         """,
     )
     suspend fun exportRows(): List<ExportRow>
+
+    @Query(
+        """
+        SELECT b.month, b.limitAmount,
+               CASE WHEN p.name IS NOT NULL THEN p.name ELSE c.name END AS topName,
+               CASE WHEN p.name IS NOT NULL THEN c.name ELSE NULL END AS subName
+        FROM budgets b
+        LEFT JOIN categories c ON c.id = b.categoryId
+        LEFT JOIN categories p ON p.id = c.parentId
+        ORDER BY b.month, b.categoryId IS NOT NULL, topName, subName
+        """,
+    )
+    suspend fun budgetExportRows(): List<BudgetExportRow>
+
+    /** All savings goals, archived ones too, with the amount saved so far. */
+    @Query(
+        """
+        SELECT v.*, COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.vaultId = v.id AND t.type = 'SAVING'), 0) AS saved
+        FROM vaults v ORDER BY v.id
+        """,
+    )
+    suspend fun vaultExportRows(): List<VaultWithSaved>
 
     /** Number of existing transactions identical to the given one within the time window [from, to) (exports keep minute precision); used to skip duplicates when importing a file twice. */
     @Query(

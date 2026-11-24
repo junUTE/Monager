@@ -1,4 +1,5 @@
 import java.time.LocalDate
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -15,13 +16,28 @@ android {
         applicationId = "com.monager.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "0.5.1"
+        versionCode = 15
+        versionName = "0.5.2"
+        base.archivesName = "Monager-$versionName"
         buildConfigField("String", "RELEASE_DATE", "\"${LocalDate.now()}\"")
+    }
+
+    // Release signing: reads the gitignored keystore.properties at the repo root.
+    // Without it, release builds stay unsigned (e.g. on CI).
+    val keystoreProps = rootProject.file("keystore.properties")
+    if (keystoreProps.exists()) {
+        val props = Properties().apply { keystoreProps.inputStream().use { load(it) } }
+        signingConfigs.create("release") {
+            storeFile = rootProject.file(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
